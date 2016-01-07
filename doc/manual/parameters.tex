@@ -3319,7 +3319,8 @@ The formula is interpreted as having units W/kg.
 {\it Default:} 0e0
 
 
-{\it Description:} The specific rate of heating due to radioactive decay (or other bulk sources you may want to describe). This parameter corresponds to the variable $H$ in the temperature equation stated in the manual, and the heating term is $ho H$. Units: W/kg.
+{\it Description:} The specific rate of heating due to radioactive decay (or other bulk sources you may want to describe). This parameter corresponds to the variable $H$ in the temperature equation stated in the manual, and the heating term is $
+ho H$. Units: W/kg.
 
 
 {\it Possible values:} [Double 0...1.79769e+308 (inclusive)]
@@ -3569,8 +3570,9 @@ If the function you are describing represents a vector-valued function with mult
 
 `spherical hexagonal perturbation': An initial temperature field in which the temperature is perturbed following an $N$-fold pattern in a specified direction from an otherwise spherically symmetric state. The class's name comes from previous versions when the only option was $N=6$.
 
+`adiabatic boundary': An initial temperature in which the base of the lithosphere is an isotherm boundary between conductive lithosphere and adiabatic geothermal gradient in the manthle. The temperature is a linear interpolation from the surface to an isotherm depth 1673.15 K at the base of the lithosphere, from which the temperature increases adiabatically (0.0005 K per meter). The lithosphere thickness model (for example from seismic tomography data) is read from a data file (text format) consist 3 columns 'latitude', 'longitude' and  'depth', where 'depth' [km] is the depth of base of the lithosphere for a given surface coordinates (latitude and longitude in degrees  in WGS84 reference frame).  This initial temperature condition is specifically for the ellipsoidal chunk geometry model. 
 
-{\it Possible values:} [Selection S40RTS perturbation|SAVANI perturbation|adiabatic|ascii data|function|harmonic perturbation|inclusion shape perturbation|mandelbox|perturbed box|polar box|solidus|spherical gaussian perturbation|spherical hexagonal perturbation ]
+{\it Possible values:} [Selection S40RTS perturbation|SAVANI perturbation|adiabatic|ascii data|function|harmonic perturbation|inclusion shape perturbation|mandelbox|perturbed box|polar box|solidus|spherical gaussian perturbation|spherical hexagonal perturbation|adiabatic boundary]
 \end{itemize}
 
 
@@ -4615,6 +4617,29 @@ In order to facilitate placing input files in locations relative to the ASPECT s
 
 
 {\it Possible values:} [Double -1.79769e+308...1.79769e+308 (inclusive)]
+\end{itemize}
+
+\subsection{Parameters in section \tt Initial conditions/adiabatic boundary}
+\label{parameters:Initial_21conditions/adiabatic_21boundary}
+
+\begin{itemize}
+\item {\it Parameter name:} {\tt Lithosphere Isotherm Filename}
+\phantomsection\label{parameters:Initial conditions/adiabatic boundary/Lithosphere Isotherm Filename}
+
+
+\index[prmindex]{Lithosphere Isotherm Filename}
+\index[prmindexfull]{Initial conditions!adiabatic boundary!Lithosphere Isotherm Filename}
+{\it Value:} \$ASPECT\_SOURCE\_DIR/data/initial-conditions/adiabatic\_boundary/litho1.0\_model.txt
+
+
+
+{\it Default:} \$ASPECT\_SOURCE\_DIR/data/initial-conditions/adiabatic\_boundary/litho1.0\_model.txt
+
+
+{\it Description:} File from which the base of the lithosphere depth data is read. Note that full path (\$DIRECTORY\_PATH/filename) of the location of the file must be provided. The data format consist of 3 colums: latitude[degree] longitude[degree] depth[km]. The data must be arranged such that the latitude is kept constant while running over all incremented longitudes, then the latitude is incremented or decremented on step further.
+
+
+{\it Possible values:}[\$DIRECTORY\_PATH/filename]
 \end{itemize}
 
 \subsection{Parameters in section \tt Material model}
