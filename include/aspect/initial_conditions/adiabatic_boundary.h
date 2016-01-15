@@ -21,12 +21,12 @@
 
 #include <aspect/initial_conditions/interface.h>
 
-/** This initial condition is designed for the 3D ellipsoid chunk geometry  
- *model. It discretizes the model domain into two regions separated by an 
- *isotherm below with the temperature increases adiabatically. The user 
- *defines the location of the thermal isotherm with a data file with the 
- *format defined in the ASPECT manual. This plugin is developed by 
- *Tahiry Rajaonarison, D. Sarah Stamps, and Wolfgang Bangerth.” 
+/** This initial condition is designed for the 3D ellipsoid chunk geometry
+ * model. It discretizes the model domain into two regions separated by an
+ * isotherm below with the temperature increases adiabatically. The user
+ * defines the location of the thermal isotherm with a data file with the
+ * format defined in the ASPECT manual. This plugin is developed by
+ * Tahiry Rajaonarison, D. Sarah Stamps, and Wolfgang Bangerth.”
  */
 
 namespace aspect
@@ -40,7 +40,7 @@ namespace aspect
      *  temperature increases adiabatically while above the adiabatic 
      *  boundary the temperature linearly increases from a surface temperature
      *  (273.15 K or 0 degree C) to an isotherm (1673.15 K or 1600 degree C)
-     *  that is the adiabatic boundary
+     *  that is the adiabatic boundary.
      */
      template <int dim>
      class AdiabaticBoundary : public Interface<dim>
@@ -74,7 +74,7 @@ namespace aspect
           int number_coords_depth;
 
           /**
-           * A function that read adiabatic boundary depth form ascii data file and return the value of the depth for each position
+           * A function that reads adiabatic boundary depth form ascii data file and return the value of the depth for each position
            */
           double
           get_isotherm_depth (const double latitude,
