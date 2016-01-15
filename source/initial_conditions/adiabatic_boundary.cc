@@ -18,11 +18,18 @@
 */
 
 
-
 #include <aspect/initial_conditions/interface.h>
 #include <aspect/initial_conditions/adiabatic_boundary.h>
 #include <fstream>
 #include <iostream>
+
+/** This initial condition is designed for the 3D ellipsoid chunk geometry
+ * model. It discretizes the model domain into two regions separated by an
+ * isotherm below with the temperature increases adiabatically. The user
+ * defines the location of the thermal isotherm with a data file with the
+ * format defined in the ASPECT manual. This plugin is developed by
+ * Tahiry Rajaonarison, D. Sarah Stamps, and Wolfgang Bangerth.”
+ */
 
 namespace aspect
 {
@@ -84,11 +91,11 @@ namespace aspect
     AdiabaticBoundary<dim>::get_isotherm_depth(const double latitude,
                                                   const double longitude) const
     {
-          /* loop over the entire array and see if we find a point
-           * that's within delta of what we're looking for. the data
+          /* Loop over the entire array and see if we find a point
+           * that's within delta of what we're looking for. The data
            * is arranged in a way that keeps the latitude constant
-           * while running over all longitudes, and when we're done
-           * with that changes the latitude by one step. so if the
+           * while running over all longitudes. When we're finished
+           * with that change the latitude by one step. So if the
            * latitude is wrong, we can definitely skip ahead a whole
            * set of longitudes. The number of values to skip is calculated.
            */
@@ -109,7 +116,7 @@ namespace aspect
      }
      
     /**
-     * calulate distance from the center of the earth to the surface of WGS84
+     * Calulate distance from the center of the Earth to the surface of WGS84.
      */
 
     template <int dim>
@@ -129,10 +136,9 @@ namespace aspect
           return 0;
     }
 
-    /** get the depth of the adiabatic boundary isotherm for the current lat/long
-     * if above the isotherm, use a linear  behavior up to the surface
-     * below the isotherm, use an increase of .5 degrees per kilometer
-     * (0.0005 degrees per meter) 
+    /** Get the depth of the adiabatic boundary isotherm for the current lat/long.
+     * If above the isotherm use a linear interpolation to the surface.
+     * If below the isotherm use an increase of .5 degrees per kilometer.
      */
 
     template <>
@@ -213,14 +219,14 @@ namespace aspect
                 if ((std::fabs(latitudes_iso[0] - latitudes_iso[1]) > 1e-9) && (std::fabs(longitudes_iso[0] - longitudes_iso[1]) > 1e-9))
                   {
                     /** Stop program if file formatted incorrectly.
-		     */
+		             */
                     std::cout << ""<< std::endl;
                     throw std::ios_base::failure("Adiabatic boundary file not formatted correctly. " + adiabatic_boundary_file_name + "Make sure you have lat, lon, value with lat. or lon. varying.");
                   }
                 if ((std::fabs(latitudes_iso[0] - latitudes_iso[1]) < 1e-9) && (std::fabs(longitudes_iso[0] - longitudes_iso[1]) < 1e-9))
                   {
                     /** Stop program if file formatted incorrectly.
-		     */
+		             */
                     std::cout << ""<< std::endl;
                     throw std::ios_base::failure("Adiabatic boundary file not formatted correctly. " + adiabatic_boundary_file_name + "Make sure you have lat, lon, value with lat. or lon. varying.");
                   }
@@ -228,16 +234,16 @@ namespace aspect
                 if (std::fabs(latitudes_iso[0] - latitudes_iso[1]) > 1e-9)
                   {
                     /** Calculate delta as half the distance between points.
-		     */
+		             */
                     delta = std::fabs((0.5)*(latitudes_iso[0] - latitudes_iso[1]));
                     /** If flag is 0 then longitudes grouped and we calculate delta from latitudes
-		     */
+		             */
                     data_flag = 0;
                   }
                 else
                   {
                     /** Calculate delta as half the distance between points.
-		     */
+		             */
                     delta = std::fabs((0.5)*(longitudes_iso[0] - longitudes_iso[1]));
                     /** If flag is 1 then latitudes are grouped and we calculate delta from longitudes
                      */
@@ -252,8 +258,8 @@ namespace aspect
               }
           }
 
-        /** Calculate the number of unique longitudes or latitudes from the adiabatic boundary file.
-         */
+    /** Calculate the number of unique longitudes or latitudes from the adiabatic boundary file.
+     */
 	double c,d;
         int count3;
         count3 = 0;
@@ -286,7 +292,7 @@ namespace aspect
                 d = longitudes_iso[count3];
                 count3++;
               }
-          }
+           }
 
         std::cout << ""<< std::endl;
         std::cout<<"number of unique latitudes or longitudes in Adiabatic boundary file= "<< count3 - 1 << std::endl;
