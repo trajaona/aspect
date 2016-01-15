@@ -116,7 +116,7 @@ namespace aspect
      }
      
     /**
-     * Calulate distance from the center of the Earth to the surface of WGS84.
+     * Calculate distance from the center of the Earth to the surface of WGS84.
      */
 
     template <int dim>
