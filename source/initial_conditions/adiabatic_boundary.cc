@@ -27,9 +27,13 @@
  * model. It discretizes the model domain into two regions separated by an
  * isotherm below with the temperature increases adiabatically. The user
  * defines the location of the thermal isotherm with a data file with the
- * format defined in the ASPECT manual. This plugin is developed by
- * Tahiry Rajaonarison, D. Sarah Stamps, and Wolfgang Bangerth.”
+ * format defined in the ASPECT manual. Note that the latitudinal and
+ * longitudinal bounds of the ascii input data file needs to be at least 1
+ * degree wider than the bounds you use to define the ellipsoid chunk geometry
+ * model.
+ * This plugin is developed by Tahiry Rajaonarison, D. Sarah Stamps, and Wolfgang Bangerth.”
  */
+
 
 namespace aspect
 {
