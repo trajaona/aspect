@@ -1030,6 +1030,14 @@ namespace aspect
      * entry in the list must match one of the allowed operations.
      */
     std::vector<Operator> create_model_operator_list(const std::vector<std::string> &operator_names);
+    
+    /*
+     * Calculate 2D or 3D vector inclination with resepect to the horizontal plan. 
+     */
+    template <int dim>
+    double compute_vector_inclination_wrt_horizontal (const Tensor<1,dim> &v,
+    		                                          std::string &coordinate_system);
+    
   }
 }
 
