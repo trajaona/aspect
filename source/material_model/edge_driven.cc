@@ -19,7 +19,7 @@
 */
 
 
-#include <aspect/material_model/edge_driven.h>
+#include "edge_driven.h"
 
 using namespace dealii;
 
@@ -168,6 +168,10 @@ namespace aspect
     evaluate(const MaterialModel::MaterialModelInputs<dim> &in,
              MaterialModel::MaterialModelOutputs<dim> &out) const
     {
+      // evaluate the base model to get the crustal viscosity
+      MaterialModel::MaterialModelOutputs<dim> crust_out = out;
+      base_model->evaluate(in, crust_out);
+
       for (unsigned int i=0; i < in.position.size(); ++i)
         {
           const double temperature = in.temperature[i];
@@ -187,23 +191,26 @@ namespace aspect
           else
               out.densities[i] = mantle_density * (1 - thermal_alpha * (in.temperature[i] - reference_T));
          
-          // The viscosity of the crust is uniform equal to 1e25 Pa.s. 
+          // The viscosity of the crust is determined by the base model.
           // The rheology of the lithosphere is governed by disolcation creep flow law 
           // and diffusion creep for of the sublithospheric mantle. 
           double s = 0.0;
           double viscosity;
           if (depth <  moho)
-             viscosity = crust_viscosity;
+          {
+            viscosity = crust_out.viscosities[i];
+          }
           else if (depth >= moho && depth < litho_depth_lookup->get_boundary_depth(wcoord))
           {
              s = boundary_smoothing (depth, moho, smoothing_thickness);
-             viscosity = s* crust_viscosity + 
-                         (1-s) * dislocation_creep (pressure, temperature, in.strain_rate[i]);
+             viscosity = (1-s) * crust_viscosity + 
+                         s * dislocation_creep (pressure, temperature, in.strain_rate[i]);
           }
           else
           { 
              s = boundary_smoothing (depth, litho_depth_lookup->get_boundary_depth(wcoord), smoothing_thickness);
-             viscosity = diffusion_creep(pressure, temperature);
+             viscosity = (1-s) * dislocation_creep (pressure, temperature, in.strain_rate[i]) +
+                         s + diffusion_creep(pressure, temperature);
           }
           out.viscosities[i] = std::min(std::max(viscosity, min_visc), max_visc);
           out.thermal_expansion_coefficients[i] = thermal_alpha;
@@ -330,6 +337,13 @@ namespace aspect
                              Patterns::Double (0),
                              "The viscosity of the crust which can be  modified later by a visco-plastic rheology "
                              "modified by only temperature. Units: $kg/m/s$.");
+          prm.declare_entry ("Base model","simpler",
+                             Patterns::Selection(MaterialModel::get_valid_model_names_pattern<dim>()),
+                             "The name of a material model that will be used for the crustal viscosity. "
+                             "Valid values for this parameter "
+                             "are the names of models that are also valid for the "
+                             "``Material models/Model name'' parameter. See the documentation for "
+                             "that for more information.");
           prm.declare_entry ("Composition viscosity prefactor", "1.0",
                              Patterns::Double (0),
                              "A linear dependency of viscosity on the first compositional field. "
@@ -372,7 +386,7 @@ namespace aspect
           prm.declare_entry ("Dislocation creep for lithosphere","true",
                              Patterns::Bool (),
                              "Use dislocation creep flow law for the lithospheric region");
-          prm.declare_entry ("Data directory", "$ASPECT_SOURCE_DIR/data/initial-conditions/adiabatic-boundary/",
+          prm.declare_entry ("Data directory", "$ASPECT_SOURCE_DIR/data/initial-temperature/adiabatic-boundary/",
                              Patterns::DirectoryName (),
                              "The path to the isotherm depth data file");
           prm.declare_entry ("Isotherm depth filename",
@@ -457,6 +471,17 @@ namespace aspect
           mantle_density                  = prm.get_double ("Mantle lithosphere density");
           reference_T                     = prm.get_double ("Reference temperature");
           crust_viscosity                 = prm.get_double ("Crust viscosity");
+          // Crustal viscosity material model
+          AssertThrow( prm.get("Base model") != "edge driven",
+                      ExcMessage("You may not use ``edge driven'' as the base model for "
+                                  "a this material model.") );
+          // create the crustal viscosity model and initialize its SimulatorAccess base
+          // class; it will get a chance to read its parameters below after we
+          // leave the current section
+          base_model.reset(create_material_model<dim>(prm.get("Base model")));
+          if (SimulatorAccess<dim> *sim = dynamic_cast<SimulatorAccess<dim>*>(base_model.get()))
+             sim->initialize_simulator (this->get_simulator());
+
           composition_viscosity_prefactor = prm.get_double ("Composition viscosity prefactor");
           thermal_viscosity_exponent      = prm.get_double ("Thermal viscosity exponent");
           k_value                         = prm.get_double ("Thermal conductivity");
@@ -508,6 +533,9 @@ namespace aspect
       if (compositional_delta_rho != 0)
         this->model_dependence.density |=NonlinearDependence::compositional_fields;
 
+      // Parse the parameters of the base model
+      base_model->parse_parameters(prm);
+      this->model_dependence.viscosity = base_model->get_model_dependence().viscosity;
     }
   }
 }

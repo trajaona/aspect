@@ -22,8 +22,11 @@
 #ifndef __aspect__edge_driven_h
 #define __aspect__edge_driven_h
 
+#include <aspect/initial_temperature/interface.h>
+#include <aspect/initial_temperature/adiabatic_boundary.h>
 #include <aspect/geometry_model/interface.h>
-#include <aspect/material_model/interface.h>
+//#include <aspect/material_model/interface.h>
+#include <aspect/material_model/drucker_prager.h>
 #include <aspect/simulator_access.h>
 #include <aspect/utilities.h>
 
@@ -206,6 +209,10 @@ namespace aspect
          */
         std_cxx11::shared_ptr<internal::Boundary::BoundaryLookup> litho_depth_lookup;
 
+        /**
+         * Pointer to the material model used as the base model
+         */
+        std_cxx11::shared_ptr<MaterialModel::Interface<dim> > base_model;
     };
 
   }
