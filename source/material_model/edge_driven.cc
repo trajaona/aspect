@@ -19,8 +19,11 @@
 */
 
 
-#include "edge_driven.h"
+/*
+ * include "edge_driven.h"
+ */
 
+#include <aspect/material_model/edge_driven.h>
 using namespace dealii;
 
 namespace aspect
