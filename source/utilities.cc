@@ -2489,45 +2489,47 @@ namespace aspect
     }
     
     template <int dim>
-    double compute_vector_inclination_wrt_horizontal (const Tensor<1,dim> &v, 
-    		                                          const std::string &coordinate_system)
+    double compute_vector_inclination_wrt_horizontal (const Point<dim> &position,
+    		                                          const Tensor<1,dim> &v, 
+    		                                          const Utilities::Coordinates::CoordinateSystem &coordinate_system)
     {
-    	double return_value;
+    	double inclination_angle;
     	const double radian_to_degree = 180. / numbers::PI;
   	   	  	
-    	if (Utilities::Coordinates::string_to_coordinate_system(coordinate_system) == Utilities::Coordinates::cartesian)
+    	if (coordinate_system == Utilities::Coordinates::cartesian)
     	{
-    	      switch (dim)
-    	        {
-    	          case 2:
-                    return_value = std::atan2(v[1], v[0]);
-    	            break;
-
-    	          case 3:
-                    return_value = std::atan2(v[2], std::sqrt(v[0]*v[0] + v[1]*v[1]));
-    	            break;
-    	            
-    	          default:
-    	        	AssertThrow(false,ExcNotImplemented());
-    	        }
-    	      return return_value * radian_to_degree;
-    	} 
+    	  const double vertical_component = v[dim-1];
+    	  Tensor<1,dim-1> horizontal_components;
+    	  for (unsigned int d=0; d < dim-2; d++)
+    	     horizontal_components[d] = v[d];
+   	   
+    	  inclination_angle = std::atan2(vertical_component, horizontal_components.norm()); 
+    	 } 
     	
-    	else if (Utilities::Coordinates::string_to_coordinate_system(coordinate_system) == Utilities::Coordinates::spherical)
+    	else if (coordinate_system == Utilities::Coordinates::spherical)
     	{
-    	  	Point<dim> point;
-    	  	for (int d= 1; d <= dim; d++)
-    	  	    point[d] = v[d];
-    	  	std_cxx11::array<double,dim> scoord = cartesian_to_spherical_coordinates(point);  	 
+    	   std_cxx11::array<double,dim> scoord = cartesian_to_spherical_coordinates(position);  	 
     	  	
-    	  	
-    	  	
-    	}
+    	   switch (dim)
+    	    {
+    	      case 2:
+    	    	  inclination_angle = std::atan2(v[1], v[0]);
+    	      break;
+
+    	      case 3:
+    	    	  inclination_angle = std::atan2(v[2], std::sqrt(v[0]*v[0] + v[1]*v[1]));
+    	      break;
+    	     	            
+    	      default:
+    	     	  AssertThrow(false,ExcNotImplemented());
+    	     } 	      
+    	}   	
     	else 
         {
           AssertThrow(false, ExcNotImplemented());
           return numbers::signaling_nan<double>();
         }	
+    	return inclination_angle * radian_to_degree;
      }
     	
 
