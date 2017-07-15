@@ -2513,7 +2513,7 @@ namespace aspect
     	   switch (dim)
     	    {
     	      case 2:
-    	    	  inclination_angle = std::atan2(v[1], v[0]);
+
     	      break;
 
     	      case 3:
@@ -2532,10 +2532,44 @@ namespace aspect
     	return inclination_angle * radian_to_degree;
      }
     	
+    template <int dim>
+    std_cxx11::array<double,dim>
+    cartesian_to_spherical_components (const Point<dim> &v_origin, const Tensor<1,dim> &v)
+    {
+    	std_cxx11::array<double,dim> return_value;
+    	std_cxx11::array<Tensor<1,dim>,dim> basis;
+    	std_cxx11::array<double,dim> scoord = Utilities::Coordinates::cartesian_to_spherical_coordinates(v_origin);
 
-    
+    	   switch (dim)
+    	   {
+    	     case 2:
+    	    	 basis[0][0] = std::cos(scoord[1]);
+    	    	 basis[0][1] = std::sin(scoord[1]);
+    	    	 basis[1][0] = -basis[0][1];
+    	    	 basis[1][1] = -basis[0][0];
+    	     break;
 
+    	     case 3:
+    	    	 basis[0][0] =  std::sin(scoord[2]) * std::cos(scoord[1]);
+    	    	 basis[0][1] =  std::sin(scoord[2]) * std::sin(scoord[1]);
+    	    	 basis[0][2] =  std::cos(scoord[2]);
+    	    	 basis[1][0] =  std::cos(scoord[2]) * std::cos(scoord[1]);
+    	    	 basis[1][1] =  std::cos(scoord[2]) * std::sin(scoord[1]);
+    	    	 basis[1][2] = -std::sin(scoord[2]);
+    	    	 basis[2][0] = -std::sin(scoord[1]);
+    	    	 basis[2][1] =  std::cos(scoord[1]);
+    	    	 basis[2][2] = 0.0;
+    	     break;
 
+    	     default:
+    	         AssertThrow(false,ExcNotImplemented());
+    	   }
+
+           for (unsigned int d=0; d < dim; d++)
+        	     return_value[d] = scalar_product (basis[d], v);
+
+           return return_value;
+      }
 
 
 // Explicit instantiations
@@ -2564,6 +2598,9 @@ namespace aspect
     template class AsciiDataProfile<1>;
     template class AsciiDataProfile<2>;
     template class AsciiDataProfile<3>;
+
+    template std_cxx11::array<double,2> spherical_components<2> (const Point<2> &v_origin, const Tensor<1,2> &v);
+    template std_cxx11::array<double,3> spherical_components<3> (const Point<3> &v_origin, const Tensor<1,3> &v);
 
     template Point<2> Coordinates::spherical_to_cartesian_coordinates<2>(const std_cxx11::array<double,2> &scoord);
     template Point<3> Coordinates::spherical_to_cartesian_coordinates<3>(const std_cxx11::array<double,3> &scoord);

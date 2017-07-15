@@ -1038,6 +1038,10 @@ namespace aspect
     double compute_vector_inclination_wrt_horizontal (const Point<dim> position,
     		                                          const Tensor<1,dim> &v);
     
+    template <int dim>
+    std_cxx11::array<double,dim>
+    cartesian_to_spherical_components (const Point<dim> &v_origin, const Tensor<1,dim> &v);
+
   }
 }
 
