@@ -2489,48 +2489,69 @@ namespace aspect
     }
     
     template <int dim>
-    double compute_vector_inclination_wrt_horizontal (const Point<dim> &position,
+    double compute_vector_inclination_wrt_horizontal (const Point<dim> &v_origin,
     		                                          const Tensor<1,dim> &v, 
     		                                          const Utilities::Coordinates::CoordinateSystem &coordinate_system)
     {
     	double inclination_angle;
     	const double radian_to_degree = 180. / numbers::PI;
+    	double vertical_component;
+    	Tensor<1,dim-1> horizontal_components;
   	   	  	
     	if (coordinate_system == Utilities::Coordinates::cartesian)
     	{
     	  const double vertical_component = v[dim-1];
     	  Tensor<1,dim-1> horizontal_components;
-    	  for (unsigned int d=0; d < dim-2; d++)
+
+    	  for (unsigned int d=0; d <= dim-2; d++)
     	     horizontal_components[d] = v[d];
-   	   
-    	  inclination_angle = std::atan2(vertical_component, horizontal_components.norm()); 
     	 } 
     	
     	else if (coordinate_system == Utilities::Coordinates::spherical)
     	{
-    	   std_cxx11::array<double,dim> scoord = cartesian_to_spherical_coordinates(position);  	 
-    	  	
-    	   switch (dim)
-    	    {
-    	      case 2:
+    	  std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components (v_origin, v);
+    	  vertical_component = v_une[0];
+    	  Tensor<1,dim-1> horizontal_components;
 
-    	      break;
-
-    	      case 3:
-    	    	  inclination_angle = std::atan2(v[2], std::sqrt(v[0]*v[0] + v[1]*v[1]));
-    	      break;
-    	     	            
-    	      default:
-    	     	  AssertThrow(false,ExcNotImplemented());
-    	     } 	      
+    	  for (unsigned int d=1; d <= dim-1; d++)
+    	     horizontal_components[d] = v_une[d];
     	}   	
     	else 
         {
           AssertThrow(false, ExcNotImplemented());
           return numbers::signaling_nan<double>();
         }	
+
+  	    inclination_angle = std::atan2(vertical_component, horizontal_components.norm());
     	return inclination_angle * radian_to_degree;
      }
+
+    template <int dim>
+    double compute_vector_azimuth_wrt_north (const Point<dim> &v_origin,
+    		                          const Tensor<1,dim> &v)
+    {
+	   switch (dim)
+	   {
+		 case 2:
+			AssertThrow(false,ExcNotImplemented());
+		 break;
+
+		 case 3:
+			double  azimuth;
+			const double radian_to_degree = 180. / numbers::PI;
+			std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components (v_origin, v);
+			Tensor<1,dim-1> horizontal_components;
+			const double north_component = v_une[1];
+			for (unsigned int d=1; d <= dim-1; d++)
+			horizontal_components[d] = v_une[d];
+		 break;
+
+		 default:
+			 AssertThrow(false,ExcNotImplemented());
+	    }
+	     azimuth = std::acos(north_component, horizontal_components.norm());
+	     return azimuth * radian_to_degree;
+    }
     	
     template <int dim>
     std_cxx11::array<double,dim>
@@ -2598,6 +2619,17 @@ namespace aspect
     template class AsciiDataProfile<1>;
     template class AsciiDataProfile<2>;
     template class AsciiDataProfile<3>;
+
+    template double compute_vector_inclination_wrt_horizontal (const Point<2> &v_origin,
+        		                                               const Tensor<1,2> &v,
+        		                                               const Utilities::Coordinates::CoordinateSystem &coordinate_system);
+
+    template double compute_vector_inclination_wrt_horizontal (const Point<3> &v_origin,
+          		                                               const Tensor<1,3> &v,
+          		                                               const Utilities::Coordinates::CoordinateSystem &coordinate_system);
+
+    template double compute_vector_azimuth_wrt_north (const Point<2> &v_origin, const Tensor<1,2> &v);
+    template double compute_vector_azimuth_wrt_north (const Point<3> &v_origin, const Tensor<1,3> &v);
 
     template std_cxx11::array<double,2> cartesian_to_spherical_components<2> (const Point<2> &v_origin, const Tensor<1,2> &v);
     template std_cxx11::array<double,3> cartesian_to_spherical_components<3> (const Point<3> &v_origin, const Tensor<1,3> &v);
