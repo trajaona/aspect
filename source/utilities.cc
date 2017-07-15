@@ -2550,14 +2550,14 @@ namespace aspect
     	     break;
 
     	     case 3:
-    	    	 basis[0][0] =  std::sin(scoord[2]) * std::cos(scoord[1]);
-    	    	 basis[0][1] =  std::sin(scoord[2]) * std::sin(scoord[1]);
-    	    	 basis[0][2] =  std::cos(scoord[2]);
-    	    	 basis[1][0] =  std::cos(scoord[2]) * std::cos(scoord[1]);
-    	    	 basis[1][1] =  std::cos(scoord[2]) * std::sin(scoord[1]);
+    	    	 basis[0][0] = std::sin(scoord[2]) * std::cos(scoord[1]);
+    	    	 basis[0][1] = std::sin(scoord[2]) * std::sin(scoord[1]);
+    	    	 basis[0][2] = std::cos(scoord[2]);
+    	    	 basis[1][0] = std::cos(scoord[2]) * std::cos(scoord[1]);
+    	    	 basis[1][1] = std::cos(scoord[2]) * std::sin(scoord[1]);
     	    	 basis[1][2] = -std::sin(scoord[2]);
     	    	 basis[2][0] = -std::sin(scoord[1]);
-    	    	 basis[2][1] =  std::cos(scoord[1]);
+    	    	 basis[2][1] = std::cos(scoord[1]);
     	    	 basis[2][2] = 0.0;
     	     break;
 
@@ -2599,8 +2599,8 @@ namespace aspect
     template class AsciiDataProfile<2>;
     template class AsciiDataProfile<3>;
 
-    template std_cxx11::array<double,2> spherical_components<2> (const Point<2> &v_origin, const Tensor<1,2> &v);
-    template std_cxx11::array<double,3> spherical_components<3> (const Point<3> &v_origin, const Tensor<1,3> &v);
+    template std_cxx11::array<double,2> cartesian_to_spherical_components<2> (const Point<2> &v_origin, const Tensor<1,2> &v);
+    template std_cxx11::array<double,3> cartesian_to_spherical_components<3> (const Point<3> &v_origin, const Tensor<1,3> &v);
 
     template Point<2> Coordinates::spherical_to_cartesian_coordinates<2>(const std_cxx11::array<double,2> &scoord);
     template Point<3> Coordinates::spherical_to_cartesian_coordinates<3>(const std_cxx11::array<double,3> &scoord);
