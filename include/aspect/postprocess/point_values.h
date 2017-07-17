@@ -24,7 +24,7 @@
 
 #include <aspect/postprocess/interface.h>
 #include <aspect/simulator_access.h>
-
+#include <aspect/utilities.h>
 #include <deal.II/base/data_out_base.h>
 
 
@@ -32,7 +32,6 @@ namespace aspect
 {
   namespace Postprocess
   {
-
     /**
      * A postprocessor that evaluates the solution vector at individual
      * points.
@@ -86,7 +85,15 @@ namespace aspect
 
       private:
         std::vector<Point<dim> >                                       evaluation_points;
+        std::vector<std_cxx11::array<double,dim> >                     spherical_evaluation_points;
+        std::vector<std_cxx11::array<double,dim> >                     ellipsoidal_evaluation_points;
         std::vector<std::pair<double, std::vector<Vector<double> > > > point_values;
+
+        /**
+         * The coordinate representation to evaluate the function. Possible
+         * choices are depth, cartesian and spherical.
+         */
+         Utilities::Coordinates::CoordinateSystem coordinate_system;
     };
   }
 }

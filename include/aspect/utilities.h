@@ -156,10 +156,10 @@ namespace aspect
        * phi and radius.
        */
       template <int dim>
-      Point<3>
-      ellipsoidal_to_cartesian_coordinates(const std_cxx11::array<double,3> &phi_theta_d,
-                                           const double semi_major_axis_a,
-                                           const double eccentricity);
+      Point<dim>
+      ellipsoidal_to_cartesian_coordinates(const std_cxx11::array<double,dim> &phi_theta_d,
+                                           const double &semi_major_axis_a,
+                                           const double &eccentricity);
 
       /**
        * This enum lists available coordinate systems that can be used for
@@ -176,6 +176,7 @@ namespace aspect
         depth,
         cartesian,
         spherical,
+		ellipsoidal,
         invalid
       };
 

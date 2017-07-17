@@ -20,8 +20,10 @@
 
 
 #include <aspect/postprocess/point_values.h>
+#include <aspect/utilities.h>
 #include <aspect/global.h>
 #include <deal.II/numerics/vector_tools.h>
+#include <deal.II/base/std_cxx11/array.h>
 
 #include <math.h>
 
@@ -93,6 +95,8 @@ namespace aspect
       const std::string filename = (this->get_output_directory() +
                                     "point_values.txt");
       std::ofstream f (filename.c_str());
+      if (coordinate_system ==  Utilities::Coordinates::CoordinateSystem::cartesian)
+      {
       f << ("# <time> "
             "<evaluation_point_x> "
             "<evaluation_point_y> ")
@@ -110,6 +114,7 @@ namespace aspect
            time_point != point_values.end();
            ++time_point)
         {
+
           Assert (time_point->second.size() == evaluation_points.size(),
                   ExcInternalError());
           for (unsigned int i=0; i<evaluation_points.size(); ++i)
@@ -138,6 +143,67 @@ namespace aspect
           // have an empty line between time steps
           f << '\n';
         }
+      }
+      else if (coordinate_system ==  Utilities::Coordinates::CoordinateSystem::ellipsoidal)
+      {
+    	  f << ("# <time> "
+              "<evaluation_point_u> "
+              "<evaluation_point_n> ")
+          << (dim == 3 ? "<evaluation_point_e> " : "")
+          << ("<velocity_u> "
+              "<velocity_n> ")
+          << (dim == 3 ? "<velocity_e> " : "")
+          << "<azimuth";
+    	for (std::vector<std::pair<double, std::vector<Vector<double> > > >::iterator
+    	     time_point = point_values.begin();
+    	     time_point != point_values.end();
+    	     ++time_point)
+    	  {
+    	    Assert (time_point->second.size() == evaluation_points.size(),
+    	            ExcInternalError());
+    	    for (unsigned int i=0; i<evaluation_points.size(); ++i)
+    	      {
+    	    	std_cxx11::array<double,dim> wcoord      = Utilities::Coordinates::WGS84_coordinates(evaluation_points[i]);
+    	    	Point<dim> x;
+    	    	for (unsigned int d=0; d<evaluation_points.size(); ++d)
+    	    		 x[d] = wcoord[d];
+
+    	        f << /* time = */ time_point->first / (this->convert_output_to_years() ? year_in_seconds : 1.)
+    	          << ' '
+    	          << /* location = */ x << ' ';
+
+    	        Tensor<1,dim>  v;
+    	        for (unsigned int c=0; c< dim; ++c)
+    	        	v[c] = time_point->second[i][c];
+
+    	        std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components<dim>(x, v);
+
+    	        for (unsigned int c=0; c< dim; ++c)
+    	          {
+
+    	           // output a data element. internally, we store all point
+    	           // values in the same format in which they were computed,
+    	           // but we convert velocities to meters per year if so
+    	           // requested
+
+
+    	           if ((this->introspection().component_masks.velocities[c] == false)
+    	                ||
+    	               (this->convert_output_to_years() == false))
+    	             f << v_une[c];
+    	           else
+    	             f << v_une[c] * year_in_seconds;
+
+    	           f << Utilities::compute_vector_azimuth_wrt_north<dim>(x, v);
+    	           f <<'\n';
+    	           }
+    	       }
+
+    	            // have an empty line between time steps
+    	            f << '\n';
+    	     }
+        }
+
 
       AssertThrow (f, ExcMessage("Writing data to <" + filename +
                                  "> did not succeed in the `point values' "
@@ -166,6 +232,17 @@ namespace aspect
                             "The list of points at which the solution should be evaluated. "
                             "Points need to be separated by semicolons, and coordinates of "
                             "each point need to be separated by commas.");
+
+          prm.declare_entry ("Coordinate system", "cartesian",
+                                       Patterns::Selection ("cartesian|spherical|depth"),
+                                       "A selection that determines the assumed coordinate "
+                                       "system for the function variables. Allowed values "
+                                       "are `cartesian', `spherical', and `depth'. `spherical' coordinates "
+                                       "are interpreted as r,phi or r,phi,theta in 2D/3D "
+                                       "respectively with theta being the polar angle. `depth' "
+                                       "will create a function, in which only the first "
+                                       "parameter is non-zero, which is interpreted to "
+                                       "be the depth of the point.");
         }
         prm.leave_subsection();
       }
@@ -193,11 +270,38 @@ namespace aspect
                                        + point_list[p] +
                                        ">, but this does not correspond to a list of numbers with "
                                        "as many coordinates as you run your simulation in."));
+              coordinate_system = Utilities::Coordinates::string_to_coordinate_system(prm.get("Coordinate system"));
 
               Point<dim> point;
-              for (unsigned int d=0; d<dim; ++d)
-                point[d] = Utilities::string_to_double (coordinates[d]);
-              evaluation_points.push_back (point);
+              if (coordinate_system ==  Utilities::Coordinates::CoordinateSystem::cartesian)
+              {
+            	  for (unsigned int d=0; d<dim; ++d)
+            	  point[d] = Utilities::string_to_double (coordinates[d]);
+                  evaluation_points.push_back (point);
+              }
+              else if (coordinate_system ==  Utilities::Coordinates::CoordinateSystem::ellipsoidal)
+              {
+            	  const double semi_major_axis_a = 6378137.0;
+            	  const double eccentricity = 8.1819190842622e-2;
+            	  std_cxx11::array<double,dim> phi_theta_d;
+            	  for (unsigned int d=0; d<dim; ++d)
+            	  phi_theta_d[d] = Utilities::string_to_double (coordinates[d]);
+            	  point = Utilities::Coordinates::ellipsoidal_to_cartesian_coordinates<dim>(phi_theta_d, semi_major_axis_a, eccentricity);
+		          evaluation_points.push_back (point);
+            	  ellipsoidal_evaluation_points.push_back(phi_theta_d);
+              }
+              else if (coordinate_system ==  Utilities::Coordinates::CoordinateSystem::ellipsoidal)
+              {
+				  std_cxx11::array<double,dim> scoord;
+				  for (unsigned int d=0; d<dim; ++d)
+				  scoord[d] = Utilities::string_to_double (coordinates[d]);
+				  point = Utilities::Coordinates::spherical_to_cartesian_coordinates<dim>(scoord);
+				  evaluation_points.push_back (point);
+				  spherical_evaluation_points.push_back(scoord);
+			  }
+              else
+            	  AssertThrow(false, ExcNotImplemented());
+
             }
         }
         prm.leave_subsection();

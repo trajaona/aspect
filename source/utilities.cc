@@ -304,11 +304,16 @@ namespace aspect
       }
 
       template <int dim>
-      Point<3>
-      ellipsoidal_to_cartesian_coordinates(const std_cxx11::array<double,3> &phi_theta_d,
-                                           const double semi_major_axis_a,
-                                           const double eccentricity)
+      Point<dim>
+      ellipsoidal_to_cartesian_coordinates(const std_cxx11::array<double,dim> &phi_theta_d,
+                                           const double &semi_major_axis_a,
+                                           const double &eccentricity)
       {
+
+    	AssertThrow (dim==2, ExcMessage ("ellipsidal to cartesian function is not implemented for 2D."));
+
+
+
         const double phi   = phi_theta_d[0];
         const double theta = phi_theta_d[1];
         const double d     = phi_theta_d[2];
@@ -316,11 +321,12 @@ namespace aspect
         const double R_bar = semi_major_axis_a / std::sqrt(1 - (eccentricity * eccentricity *
                                                                 std::sin(theta) * std::sin(theta)));
 
-        return Point<3> ((R_bar + d) * std::cos(phi) * std::cos(theta),
+        return Point<dim> ((R_bar + d) * std::cos(phi) * std::cos(theta),
                          (R_bar + d) * std::sin(phi) * std::cos(theta),
                          ((1 - eccentricity * eccentricity) * R_bar + d) * std::sin(theta));
-
       }
+
+
 
 
 
@@ -331,6 +337,8 @@ namespace aspect
           return cartesian;
         else if (coordinate_system == "spherical")
           return spherical;
+        else if (coordinate_system == "ellipsoidal")
+          return ellipsoidal;
         else if (coordinate_system == "depth")
           return Coordinates::depth;
         else
@@ -2495,15 +2503,15 @@ namespace aspect
     {
     	double inclination_angle;
     	const double radian_to_degree = 180. / numbers::PI;
-    	double vertical_component;
+    	double vertical_component = 0.0;
     	Tensor<1,dim-1> horizontal_components;
   	   	  	
     	if (coordinate_system == Utilities::Coordinates::cartesian)
     	{
-    	  const double vertical_component = v[dim-1];
+    	   vertical_component = v[dim-1];
     	  Tensor<1,dim-1> horizontal_components;
 
-    	  for (unsigned int d=0; d <= dim-2; d++)
+    	  for (unsigned int d=0; d < dim-1; d++)
     	     horizontal_components[d] = v[d];
     	 } 
     	
@@ -2511,8 +2519,6 @@ namespace aspect
     	{
     	  std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components (v_origin, v);
     	  vertical_component = v_une[0];
-    	  Tensor<1,dim-1> horizontal_components;
-
     	  for (unsigned int d=1; d <= dim-1; d++)
     	     horizontal_components[d] = v_une[d];
     	}   	
@@ -2528,29 +2534,34 @@ namespace aspect
 
     template <int dim>
     double compute_vector_azimuth_wrt_north (const Point<dim> &v_origin,
-    		                          const Tensor<1,dim> &v)
+    		                                  const Tensor<1,dim> &v)
     {
+       double  azimuth;
+   	   const double radian_to_degree = 180. / numbers::PI;
+       Tensor<1,dim-1> horizontal_components;
+       double north_component;
 	   switch (dim)
 	   {
 		 case 2:
+		 {
 			AssertThrow(false,ExcNotImplemented());
-		 break;
-
+			return numbers::signaling_nan<double>();
+		 }
 		 case 3:
-			double  azimuth;
-			const double radian_to_degree = 180. / numbers::PI;
+		 {
 			std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components (v_origin, v);
-			Tensor<1,dim-1> horizontal_components;
-			const double north_component = v_une[1];
+			north_component = v_une[1];
 			for (unsigned int d=1; d <= dim-1; d++)
 			horizontal_components[d] = v_une[d];
-		 break;
-
+			azimuth = std::acos(north_component / horizontal_components.norm());
+		    return azimuth * radian_to_degree;
+		 }
 		 default:
+		 {
 			 AssertThrow(false,ExcNotImplemented());
+		 }
 	    }
-	     azimuth = std::acos(north_component, horizontal_components.norm());
-	     return azimuth * radian_to_degree;
+	   return numbers::signaling_nan<double>();
     }
     	
     template <int dim>
@@ -2564,13 +2575,14 @@ namespace aspect
     	   switch (dim)
     	   {
     	     case 2:
+    	     {
     	    	 basis[0][0] = std::cos(scoord[1]);
     	    	 basis[0][1] = std::sin(scoord[1]);
     	    	 basis[1][0] = -basis[0][1];
     	    	 basis[1][1] = -basis[0][0];
-    	     break;
-
+    	     }
     	     case 3:
+    	     {
     	    	 basis[0][0] = std::sin(scoord[2]) * std::cos(scoord[1]);
     	    	 basis[0][1] = std::sin(scoord[2]) * std::sin(scoord[1]);
     	    	 basis[0][2] = std::cos(scoord[2]);
@@ -2580,10 +2592,11 @@ namespace aspect
     	    	 basis[2][0] = -std::sin(scoord[1]);
     	    	 basis[2][1] = std::cos(scoord[1]);
     	    	 basis[2][2] = 0.0;
-    	     break;
-
+    	     }
     	     default:
+    	     {
     	         AssertThrow(false,ExcNotImplemented());
+    	     }
     	   }
 
            for (unsigned int d=0; d < dim; d++)
@@ -2620,26 +2633,33 @@ namespace aspect
     template class AsciiDataProfile<2>;
     template class AsciiDataProfile<3>;
 
-    template double compute_vector_inclination_wrt_horizontal (const Point<2> &v_origin,
+    template double compute_vector_inclination_wrt_horizontal<2>(const Point<2> &v_origin,
         		                                               const Tensor<1,2> &v,
         		                                               const Utilities::Coordinates::CoordinateSystem &coordinate_system);
 
-    template double compute_vector_inclination_wrt_horizontal (const Point<3> &v_origin,
+    template double compute_vector_inclination_wrt_horizontal<3>(const Point<3> &v_origin,
           		                                               const Tensor<1,3> &v,
           		                                               const Utilities::Coordinates::CoordinateSystem &coordinate_system);
 
-    template double compute_vector_azimuth_wrt_north (const Point<2> &v_origin, const Tensor<1,2> &v);
-    template double compute_vector_azimuth_wrt_north (const Point<3> &v_origin, const Tensor<1,3> &v);
+    template double compute_vector_azimuth_wrt_north<2>(const Point<2> &v_origin, const Tensor<1,2> &v);
+    template double compute_vector_azimuth_wrt_north<3>(const Point<3> &v_origin, const Tensor<1,3> &v);
 
-    template std_cxx11::array<double,2> cartesian_to_spherical_components<2> (const Point<2> &v_origin, const Tensor<1,2> &v);
-    template std_cxx11::array<double,3> cartesian_to_spherical_components<3> (const Point<3> &v_origin, const Tensor<1,3> &v);
+    template std_cxx11::array<double,2> cartesian_to_spherical_components<2>(const Point<2> &v_origin, const Tensor<1,2> &v);
+    template std_cxx11::array<double,3> cartesian_to_spherical_components<3>(const Point<3> &v_origin, const Tensor<1,3> &v);
 
     template Point<2> Coordinates::spherical_to_cartesian_coordinates<2>(const std_cxx11::array<double,2> &scoord);
     template Point<3> Coordinates::spherical_to_cartesian_coordinates<3>(const std_cxx11::array<double,3> &scoord);
 
+    template Point<2> Coordinates::ellipsoidal_to_cartesian_coordinates<2>(const std_cxx11::array<double,2> &phi_theta_d,
+                                                                          const double &semi_major_axis_a,
+                                                                          const double &eccentricity);
+
+    template Point<3> Coordinates::ellipsoidal_to_cartesian_coordinates<3>(const std_cxx11::array<double,3> &phi_theta_d,
+                                                                           const double &semi_major_axis_a,
+                                                                           const double &eccentricity);
+
     template std_cxx11::array<double,2> Coordinates::cartesian_to_spherical_coordinates<2>(const Point<2> &position);
     template std_cxx11::array<double,3> Coordinates::cartesian_to_spherical_coordinates<3>(const Point<3> &position);
-
 
     template std_cxx11::array<double,2> Coordinates::WGS84_coordinates<2>(const Point<2> &position);
     template std_cxx11::array<double,3> Coordinates::WGS84_coordinates<3>(const Point<3> &position);
