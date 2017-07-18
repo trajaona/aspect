@@ -208,6 +208,7 @@ namespace aspect
                                                                            * std::cos(th) * std::cos(th)))))
                     * (180. / numbers::PI);
 
+
         if (dim == 3)
           {
             ecoord[1] = std::atan2(position(1), position(0))
@@ -222,10 +223,11 @@ namespace aspect
         else
           ecoord[1] = 0.0;
 
+       const double R_plus_d = p / std::cos(numbers::PI *ecoord[2]/180.0);
 
-        ecoord[0] = radius/std::sqrt(1- ellipticity * ellipticity
-                                     * std::sin(numbers::PI * ecoord[2]/180)
-                                     * std::sin(numbers::PI * ecoord[2]/180));
+        ecoord[0] = radius/std::sqrt (1- ellipticity * ellipticity
+                                     * std::sin(numbers::PI * ecoord[2]/180.0)
+                                     * std::sin(numbers::PI * ecoord[2]/180.0)) - R_plus_d;
         return ecoord;
       }
 
@@ -309,11 +311,6 @@ namespace aspect
                                            const double &semi_major_axis_a,
                                            const double &eccentricity)
       {
-
-    	AssertThrow (dim==2, ExcMessage ("ellipsidal to cartesian function is not implemented for 2D."));
-
-
-
         const double phi   = phi_theta_d[0];
         const double theta = phi_theta_d[1];
         const double d     = phi_theta_d[2];
@@ -2519,8 +2516,8 @@ namespace aspect
     	{
     	  std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components (v_origin, v);
     	  vertical_component = v_une[0];
-    	  for (unsigned int d=1; d <= dim-1; d++)
-    	     horizontal_components[d] = v_une[d];
+    	  for (unsigned int d=0; d < dim-1; d++)
+    	     horizontal_components[d] = v_une[d+1];
     	}   	
     	else 
         {
@@ -2546,15 +2543,17 @@ namespace aspect
 		 {
 			AssertThrow(false,ExcNotImplemented());
 			return numbers::signaling_nan<double>();
+			break;
 		 }
 		 case 3:
 		 {
-			std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components (v_origin, v);
+			std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components<dim>(v_origin, v);
 			north_component = v_une[1];
-			for (unsigned int d=1; d <= dim-1; d++)
-			horizontal_components[d] = v_une[d];
+			for (unsigned int d=0; d < dim-1; d++)
+			horizontal_components[d] = v_une[d+1];
 			azimuth = std::acos(north_component / horizontal_components.norm());
 		    return azimuth * radian_to_degree;
+		    break;
 		 }
 		 default:
 		 {
@@ -2580,6 +2579,7 @@ namespace aspect
     	    	 basis[0][1] = std::sin(scoord[1]);
     	    	 basis[1][0] = -basis[0][1];
     	    	 basis[1][1] = -basis[0][0];
+    	    	 break;
     	     }
     	     case 3:
     	     {
@@ -2592,6 +2592,7 @@ namespace aspect
     	    	 basis[2][0] = -std::sin(scoord[1]);
     	    	 basis[2][1] = std::cos(scoord[1]);
     	    	 basis[2][2] = 0.0;
+    	    	 break;
     	     }
     	     default:
     	     {
@@ -2641,8 +2642,8 @@ namespace aspect
           		                                               const Tensor<1,3> &v,
           		                                               const Utilities::Coordinates::CoordinateSystem &coordinate_system);
 
-    template double compute_vector_azimuth_wrt_north<2>(const Point<2> &v_origin, const Tensor<1,2> &v);
-    template double compute_vector_azimuth_wrt_north<3>(const Point<3> &v_origin, const Tensor<1,3> &v);
+    template double compute_vector_azimuth_wrt_north(const Point<2> &v_origin, const Tensor<1,2> &v);
+    template double compute_vector_azimuth_wrt_north(const Point<3> &v_origin, const Tensor<1,3> &v);
 
     template std_cxx11::array<double,2> cartesian_to_spherical_components<2>(const Point<2> &v_origin, const Tensor<1,2> &v);
     template std_cxx11::array<double,3> cartesian_to_spherical_components<3>(const Point<3> &v_origin, const Tensor<1,3> &v);

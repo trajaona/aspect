@@ -1036,8 +1036,9 @@ namespace aspect
      * Calculate 2D or 3D vector inclination with resepect to the horizontal plan. 
      */
     template <int dim>
-    double compute_vector_inclination_wrt_horizontal (const Point<dim> position,
-    		                                          const Tensor<1,dim> &v);
+    double compute_vector_inclination_wrt_horizontal (const Point<dim> &position,
+    		                                          const Tensor<1,dim> &v,
+													  const Utilities::Coordinates::CoordinateSystem &coordinate_system);
     template <int dim>
     double compute_vector_azimuth_wrt_north (const Point<dim> &v_origin, const Tensor<1,dim> &v);
 
