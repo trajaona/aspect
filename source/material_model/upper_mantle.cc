@@ -167,7 +167,6 @@ namespace aspect
           const double temperature = in.temperature[i];
           const double pressure= in.pressure[i];
           const Point<3> pos = in.position[i];
-          const std_cxx11::array<double,dim> wcoord      = Utilities::Coordinates::WGS84_coordinates(pos);
           const double depth = this->get_geometry_model().depth(in.position[i]);
           const std::vector<double> &composition = in.composition[i];
 		  std::vector<double> composition_viscosities (composition.size()+1);

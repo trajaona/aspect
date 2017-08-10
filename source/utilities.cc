@@ -2534,6 +2534,7 @@ namespace aspect
     		                                  const Tensor<1,dim> &v)
     {
        double  azimuth;
+       double return_value;
    	   const double radian_to_degree = 180. / numbers::PI;
        Tensor<1,dim-1> horizontal_components;
        double north_component;
@@ -2548,11 +2549,23 @@ namespace aspect
 		 case 3:
 		 {
 			std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components<dim>(v_origin, v);
-			north_component = v_une[1];
+			north_component = v_une[2];
 			for (unsigned int d=0; d < dim-1; d++)
 			horizontal_components[d] = v_une[d+1];
-			azimuth = std::acos(north_component / horizontal_components.norm());
-		    return azimuth * radian_to_degree;
+		    //if (v_une[1] > 0.0 && azimuth > numbers::PI/2)
+		      //  return_value =   (-numbers::PI + azimuth) * radian_to_degree;
+		    //else
+		    	return_value = (horizontal_components[0] <0) ?
+		    			        std::asin(horizontal_components[1] / horizontal_components.norm()) + numbers::PI/2
+							   :
+								std::acos(north_component / horizontal_components.norm()) ;
+
+		    return (return_value > numbers::PI/2)
+		    		?
+		    		(return_value - numbers::PI)* radian_to_degree
+					:
+					return_value * radian_to_degree;
+
 		    break;
 		 }
 		 default:

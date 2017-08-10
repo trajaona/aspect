@@ -72,7 +72,7 @@ namespace aspect
     AdiabaticBoundary<dim>::initial_temperature (const Point<dim> &position) const
     {
       std_cxx11::array<double,dim> wcoord      = Utilities::Coordinates::WGS84_coordinates(position);
-      const double depth                       = wcoord[0];
+      const double depth                       = this->get_geometry_model().depth(position);
       const double isotherm_depth              = get_isotherm_depth(wcoord[2], wcoord[1]);
       if (depth > isotherm_depth)
         return isotherm_temperature + (depth - isotherm_depth) * temperature_gradient;
