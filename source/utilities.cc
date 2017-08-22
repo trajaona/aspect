@@ -2619,6 +2619,18 @@ namespace aspect
            return return_value;
       }
 
+    std::vector<unsigned int>
+    get_sorted_indexes (const std::vector<double> &v)
+	{
+      std::vector<unsigned int> index(v.size());
+      iota(index.begin(), index.end(), 0);
+
+      // sort indexes based on comparing values in v
+      sort(index.begin(), index.end(),
+    	  [&v](unsigned int i1, unsigned int i2) {return v[i1] > v[i2];});
+      return index;
+	}
+
 
 // Explicit instantiations
 

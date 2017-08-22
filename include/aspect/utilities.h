@@ -1046,6 +1046,14 @@ namespace aspect
     std_cxx11::array<double,dim>
     cartesian_to_spherical_components (const Point<dim> &v_origin, const Tensor<1,dim> &v);
 
+    /*
+     * sorted A given vector return its corresponding index;
+     */
+    std::vector<unsigned int>
+    get_sorted_indexes (const std::vector<double> &v);
+
+
+
   }
 }
 
