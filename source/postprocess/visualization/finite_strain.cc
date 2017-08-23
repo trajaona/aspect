@@ -63,7 +63,7 @@ namespace aspect
         boost::numeric::ublas::matrix<double> strain(dim,dim);
         boost::numeric::ublas::matrix<double> L;
         boost::numeric::ublas::matrix<double> Q;
-        std::vector<std::vector<double>> principale_stretch (n_quadrature_points, std::vector<double>(dim));
+        std::vector<std::vector<double>> principal_stretch (n_quadrature_points, std::vector<double>(dim));
         std::vector<double>  lambda(dim);
         std::vector<Vector<double> >
         current_point_values (evaluation_points.size(),
