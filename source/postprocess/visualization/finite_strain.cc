@@ -39,7 +39,7 @@ namespace aspect
       FiniteStrain<dim>::
       FiniteStrain ()
         :
-        DataPostprocessorScalar<dim> ("strain_rate",
+        DataPostprocessorScalar<dim> ("finite_strain",
                                       update_gradients | update_q_points)
       {}
 
