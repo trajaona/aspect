@@ -33,7 +33,7 @@ namespace aspect
     {
       template <int dim>
       VelocityInclination<dim>::
-	  VelocityInclination ()
+      VelocityInclination ()
         :
         DataPostprocessorScalar<dim> ("velocity_inclination",
                                       update_values | update_q_points)
@@ -59,13 +59,13 @@ namespace aspect
          */
         Utilities::Coordinates::CoordinateSystem coordinate_system;
         if (dynamic_cast<const GeometryModel::Box<dim>*> (&this->get_geometry_model()) != 0)
-        {
-        	coordinate_system = Utilities::Coordinates::cartesian;
-        }
+          {
+            coordinate_system = Utilities::Coordinates::cartesian;
+          }
         else
-        {
-        	coordinate_system = Utilities::Coordinates::spherical;
-        }
+          {
+            coordinate_system = Utilities::Coordinates::spherical;
+          }
 
         for (unsigned int q=0; q<n_quadrature_points; ++q)
           {

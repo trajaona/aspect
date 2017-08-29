@@ -35,16 +35,16 @@ namespace aspect
     Lithosphere<dim>::
     initial_composition (const Point<dim> &position, const unsigned int n_comp) const
     {
-       const double depth = this->get_geometry_model().depth(position);
-       const double temperature = this->get_initial_temperature_manager().initial_temperature(position);
+      const double depth = this->get_geometry_model().depth(position);
+      const double temperature = this->get_initial_temperature_manager().initial_temperature(position);
 
-       // Crustal composition
-       if (depth < moho && n_comp == 0)
-          return 1.;
-       else if (depth >= moho && temperature < LAB_isotherm && n_comp == 1)
-          return 1.;
-       else
-          return 0.;
+      // Crustal composition
+      if (depth < moho && n_comp == 0)
+        return 1.;
+      else if (depth >= moho && temperature < LAB_isotherm && n_comp == 1)
+        return 1.;
+      else
+        return 0.;
     }
 
 
@@ -56,12 +56,12 @@ namespace aspect
       {
         prm.enter_subsection("Lithosphere");
         {
-        	prm.declare_entry ("Moho", "30000.0",
-        	                    Patterns::Double (0),
-        	                    "Moho depth. Units: $m.");
-        	prm.declare_entry ("LAB isotherm", "1673",
-        	        	        Patterns::Double (0),
-        	        	       "Temperature at the base of the lithosphere. Units: $K.");
+          prm.declare_entry ("Moho", "30000.0",
+                             Patterns::Double (0),
+                             "Moho depth. Units: $m.");
+          prm.declare_entry ("LAB isotherm", "1673",
+                             Patterns::Double (0),
+                             "Temperature at the base of the lithosphere. Units: $K.");
         }
         prm.leave_subsection();
       }
@@ -71,14 +71,14 @@ namespace aspect
 
     template <int dim>
     void
-	Lithosphere<dim>::parse_parameters (ParameterHandler &prm)
+    Lithosphere<dim>::parse_parameters (ParameterHandler &prm)
     {
       prm.enter_subsection("Initial composition model");
       {
         prm.enter_subsection("Lithosphere");
         {
-        	moho                            = prm.get_double ("Moho");
-        	LAB_isotherm                    = prm.get_double ("LAB isotherm");
+          moho                            = prm.get_double ("Moho");
+          LAB_isotherm                    = prm.get_double ("LAB isotherm");
         }
         prm.leave_subsection();
       }

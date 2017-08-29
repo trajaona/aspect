@@ -19,8 +19,8 @@
 */
 
 
-#ifndef _aspect_postprocess_point_values_h
-#define _aspect_postprocess_point_values_h
+#ifndef _aspect_postprocess_stretching_h
+#define _aspect_postprocess_stretching_h
 
 #include <aspect/postprocess/interface.h>
 #include <aspect/simulator_access.h>
@@ -39,7 +39,7 @@ namespace aspect
      * @ingroup Postprocessing
      */
     template <int dim>
-    class PointValues : public Interface<dim>, public ::aspect::SimulatorAccess<dim>
+    class Stretching : public Interface<dim>, public ::aspect::SimulatorAccess<dim>
     {
       public:
         /**
@@ -87,7 +87,7 @@ namespace aspect
         std::vector<Point<dim> >                                       evaluation_points;
         std::vector<std_cxx11::array<double,dim> >                     spherical_evaluation_points;
         std::vector<std_cxx11::array<double,dim> >                     ellipsoidal_evaluation_points;
-        std::vector<std::pair<double, std::vector<Vector<double> > > > point_values;
+        std::vector<std::pair<double, std::vector<std::pair<double, double>> > > point_values;
 
         /**
          * The coordinate representation to evaluate the function. Possible

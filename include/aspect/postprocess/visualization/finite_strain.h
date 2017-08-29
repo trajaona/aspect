@@ -96,16 +96,16 @@ namespace aspect
                                 std::vector<Vector<double> > &computed_quantities) const;
 
         private:
-		  std::vector<Point<dim> >                                       evaluation_points;
-	      std::vector<std_cxx11::array<double,dim> >                     spherical_evaluation_points;
-		  std::vector<std_cxx11::array<double,dim> >                     ellipsoidal_evaluation_points;
-		  std::vector<std::pair<double, std::vector<Vector<double> > > > point_values;
+          std::vector<Point<dim> >                                       evaluation_points;
+          std::vector<std_cxx11::array<double,dim> >                     spherical_evaluation_points;
+          std::vector<std_cxx11::array<double,dim> >                     ellipsoidal_evaluation_points;
+          std::vector<std::pair<double, std::vector<Vector<double> > > > point_values;
 
-		  /**
-		   * The coordinate representation to evaluate the function. Possible
-		   * choices are depth, cartesian and spherical.
-		   */
-		  Utilities::Coordinates::CoordinateSystem coordinate_system;
+          /**
+           * The coordinate representation to evaluate the function. Possible
+           * choices are depth, cartesian and spherical.
+           */
+          Utilities::Coordinates::CoordinateSystem coordinate_system;
 
       };
     }

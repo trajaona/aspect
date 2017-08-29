@@ -63,12 +63,11 @@ namespace aspect
         boost::numeric::ublas::matrix<double> strain(dim,dim);
         boost::numeric::ublas::matrix<double> L;
         boost::numeric::ublas::matrix<double> Q;
-        std::vector<std::vector<double>> principal_stretch (n_quadrature_points, std::vector<double>(dim));
+        std::vector<Vector<double>> principal_stretch (n_quadrature_points, Vector<double>(dim));
         std::vector<double>  lambda(dim);
         std::vector<Vector<double> >
         current_point_values (evaluation_points.size(),
-                              Vector<double> (this->introspection().n_components));
-
+                              Vector<double> (dim));
 
         for (unsigned int q=0; q<n_quadrature_points; ++q)
           {
@@ -78,27 +77,27 @@ namespace aspect
               velocity_gradients[d] = input_data.solution_gradients[q][d];
 
             for (unsigned i = 0; i < strain.size1 (); ++ i)
-                   for (unsigned j = 0; j < strain.size2 (); ++ j)
-                	   strain (i, j) = velocity_gradients[i][j];
+              for (unsigned j = 0; j < strain.size2 (); ++ j)
+                strain (i, j) = velocity_gradients[i][j];
 
             polar::polar_decomposition(strain, Q, L);
 
             for (unsigned i = 0; i < L.size1 (); ++ i)
-                   for (unsigned j = 0; j < L.size2 (); ++ j)
-                        stretching_tensor (i, j) = L (i, j);
+              for (unsigned j = 0; j < L.size2 (); ++ j)
+                stretching_tensor (i, j) = L (i, j);
 
             Eigen::EigenSolver<Eigen::MatrixXf> es (stretching_tensor);
             eigen_values = es.pseudoEigenvalueMatrix();
             eigen_vectors = es.pseudoEigenvectors();
 
             for (unsigned int k = 0; k < dim; k++)
-            	lambda[k] = std::fabs(eigen_values(k,k));
+              lambda[k] = std::fabs(eigen_values(k,k));
 
             std::vector<unsigned int> idx(dim);
             idx = aspect::Utilities::get_sorted_indexes(lambda);
 
             for (unsigned int d = 0; d < dim; d++)
-            	principal_stretch[q][d] = eigen_vectors(d, idx.front());
+              principal_stretch[q][d] = eigen_vectors(d, idx.front());
 
 
             //std::cout<<"Original matrix" << std::endl;
@@ -114,54 +113,6 @@ namespace aspect
 
             computed_quantities[q](0) = std::log(lambda[idx.front()] / lambda[idx.back()]);
           }
-
-
-        for (unsigned int p=0; p<evaluation_points.size(); ++p)
-		{
-		  // try to evaluate the solution at this point. in parallel, the point
-		  // will be on only one processor's owned cells, so the others are
-		  // going to throw an exception. make sure at least one processor
-		  // finds the given point
-		  bool point_found = false;
-		  try
-			{
-			  VectorTools::point_value(this->get_mapping(),
-									   this->get_dof_handler(),
-									   principal_stretch,
-									   evaluation_points[p],
-									   current_point_values[p]);
-			  point_found = true;
-			}
-		  catch (const VectorTools::ExcPointNotAvailableHere &)
-			{
-			  // ignore
-			}
-
-		  // ensure that at least one processor found things
-		  const int n_procs = Utilities::MPI::sum (point_found ? 1 : 0, this->get_mpi_communicator());
-		  AssertThrow (n_procs > 0,
-					   ExcMessage ("While trying to evaluate the solution at point " +
-								   Utilities::to_string(evaluation_points[p][0]) + ", " +
-								   Utilities::to_string(evaluation_points[p][1]) +
-								   (dim == 3
-									?
-									", " + Utilities::to_string(evaluation_points[p][2])
-									:
-									"") + "), " +
-								   "no processors reported that the point lies inside the " +
-								   "set of cells they own. Are you trying to evaluate the " +
-								   "solution at a point that lies outside of the domain?"
-								  ));
-
-		  // Reduce all collected values into local Vector
-		  Utilities::MPI::sum (current_point_values[p], this->get_mpi_communicator(),
-							   current_point_values[p]);
-
-		  // Normalize in cases where points are claimed by multiple processors
-		  if (n_procs > 1)
-			current_point_values[p] /= n_procs;
-		}
-
       }
 
       template <int dim>
@@ -222,39 +173,39 @@ namespace aspect
 
                 Point<dim> point;
                 if (coordinate_system ==  Utilities::Coordinates::CoordinateSystem::cartesian)
-                {
-              	  for (unsigned int d=0; d<dim; ++d)
-              	  point[d] = Utilities::string_to_double (coordinates[d]);
+                  {
+                    for (unsigned int d=0; d<dim; ++d)
+                      point[d] = Utilities::string_to_double (coordinates[d]);
                     evaluation_points.push_back (point);
-                }
+                  }
                 else if (coordinate_system ==  Utilities::Coordinates::CoordinateSystem::ellipsoidal)
-                {
-              	  const double semi_major_axis_a = 6378137.0;
-              	  const double eccentricity = 8.1819190842622e-2;
-              	  const double degree_to_radian = numbers::PI/180.;
-              	  std_cxx11::array<double,dim> phi_theta_d;
-              	  for (unsigned int d=0; d<dim; ++d)
-              	  phi_theta_d[d] = Utilities::string_to_double (coordinates[d]);
-              	  phi_theta_d[0] *= degree_to_radian;
-              	  phi_theta_d[1] *= degree_to_radian;
-              	  point = Utilities::Coordinates::ellipsoidal_to_cartesian_coordinates<dim>(phi_theta_d, semi_major_axis_a, eccentricity);
-  		          evaluation_points.push_back (point);
-              	  ellipsoidal_evaluation_points.push_back(phi_theta_d);
-                }
+                  {
+                    const double semi_major_axis_a = 6378137.0;
+                    const double eccentricity = 8.1819190842622e-2;
+                    const double degree_to_radian = numbers::PI/180.;
+                    std_cxx11::array<double,dim> phi_theta_d;
+                    for (unsigned int d=0; d<dim; ++d)
+                      phi_theta_d[d] = Utilities::string_to_double (coordinates[d]);
+                    phi_theta_d[0] *= degree_to_radian;
+                    phi_theta_d[1] *= degree_to_radian;
+                    point = Utilities::Coordinates::ellipsoidal_to_cartesian_coordinates<dim>(phi_theta_d, semi_major_axis_a, eccentricity);
+                    evaluation_points.push_back (point);
+                    ellipsoidal_evaluation_points.push_back(phi_theta_d);
+                  }
                 else if (coordinate_system ==  Utilities::Coordinates::CoordinateSystem::spherical)
-                {
-              	  const double degree_to_radian = numbers::PI/180.;
-  				  std_cxx11::array<double,dim> scoord;
-  				  for (unsigned int d=0; d<dim; ++d)
-  				  scoord[d] = (Utilities::string_to_double (coordinates[d]));
-  				  scoord[0] *= degree_to_radian;
-  				  scoord[1] *= degree_to_radian;
-  				  point = Utilities::Coordinates::spherical_to_cartesian_coordinates<dim>(scoord);
-  				  evaluation_points.push_back (point);
-  				  spherical_evaluation_points.push_back(scoord);
-  			  }
+                  {
+                    const double degree_to_radian = numbers::PI/180.;
+                    std_cxx11::array<double,dim> scoord;
+                    for (unsigned int d=0; d<dim; ++d)
+                      scoord[d] = (Utilities::string_to_double (coordinates[d]));
+                    scoord[0] *= degree_to_radian;
+                    scoord[1] *= degree_to_radian;
+                    point = Utilities::Coordinates::spherical_to_cartesian_coordinates<dim>(scoord);
+                    evaluation_points.push_back (point);
+                    spherical_evaluation_points.push_back(scoord);
+                  }
                 else
-              	  AssertThrow(false, ExcNotImplemented());
+                  AssertThrow(false, ExcNotImplemented());
 
               }
           }

@@ -195,14 +195,14 @@ namespace aspect
           temp = a * depth + b;
         }
       else if (depth > depth_max)
-      {
-    	  wcoord[0] = depth_max;
-    	  temp = (vs_to_temperature(pressure, Vs_look_up->get_shear_wave_velocity(wcoord), depth_max)) + (depth_max/depth)*0.0005;
-      }
+        {
+          wcoord[0] = depth_max;
+          temp = (vs_to_temperature(pressure, Vs_look_up->get_shear_wave_velocity(wcoord), depth_max)) + (depth_max/depth)*0.0005;
+        }
       else
-    	  wcoord[0] = depth;
-    	  temp = vs_to_temperature(pressure, Vs_look_up->get_shear_wave_velocity(wcoord), depth);
-        return temp;
+        wcoord[0] = depth;
+      temp = vs_to_temperature(pressure, Vs_look_up->get_shear_wave_velocity(wcoord), depth);
+      return temp;
     }
 
     template <int dim>
@@ -298,9 +298,9 @@ namespace aspect
   namespace InitialTemperature
   {
     ASPECT_REGISTER_INITIAL_TEMPERATURE_MODEL (RegionalTomography,
-                                        "regional tomography",
-                                        "An initial temperature condition that allows to convert 3D Vsv data into  "
-                                        "temperature field.")
+                                               "regional tomography",
+                                               "An initial temperature condition that allows to convert 3D Vsv data into  "
+                                               "temperature field.")
   }
 }
 

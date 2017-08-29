@@ -223,11 +223,11 @@ namespace aspect
         else
           ecoord[1] = 0.0;
 
-       const double R_plus_d = p / std::cos(numbers::PI *ecoord[2]/180.0);
+        const double R_plus_d = p / std::cos(numbers::PI *ecoord[2]/180.0);
 
         ecoord[0] = radius/std::sqrt (1- ellipticity * ellipticity
-                                     * std::sin(numbers::PI * ecoord[2]/180.0)
-                                     * std::sin(numbers::PI * ecoord[2]/180.0)) - R_plus_d;
+                                      * std::sin(numbers::PI * ecoord[2]/180.0)
+                                      * std::sin(numbers::PI * ecoord[2]/180.0)) - R_plus_d;
         return ecoord;
       }
 
@@ -319,8 +319,8 @@ namespace aspect
                                                                 std::sin(theta) * std::sin(theta)));
 
         return Point<dim> ((R_bar + d) * std::cos(phi) * std::cos(theta),
-                         (R_bar + d) * std::sin(phi) * std::cos(theta),
-                         ((1 - eccentricity * eccentricity) * R_bar + d) * std::sin(theta));
+                           (R_bar + d) * std::sin(phi) * std::cos(theta),
+                           ((1 - eccentricity * eccentricity) * R_bar + d) * std::sin(theta));
       }
 
 
@@ -2492,144 +2492,147 @@ namespace aspect
 
       return operator_list;
     }
-    
+
     template <int dim>
     double compute_vector_inclination_wrt_horizontal (const Point<dim> &v_origin,
-    		                                          const Tensor<1,dim> &v, 
-    		                                          const Utilities::Coordinates::CoordinateSystem &coordinate_system)
+                                                      const Tensor<1,dim> &v,
+                                                      const Utilities::Coordinates::CoordinateSystem &coordinate_system)
     {
-    	double inclination_angle;
-    	const double radian_to_degree = 180. / numbers::PI;
-    	double vertical_component = 0.0;
-    	Tensor<1,dim-1> horizontal_components;
-  	   	  	
-    	if (coordinate_system == Utilities::Coordinates::cartesian)
-    	{
-    	   vertical_component = v[dim-1];
-    	  Tensor<1,dim-1> horizontal_components;
+      double inclination_angle;
+      const double radian_to_degree = 180. / numbers::PI;
+      double vertical_component = 0.0;
+      Tensor<1,dim-1> horizontal_components;
 
-    	  for (unsigned int d=0; d < dim-1; d++)
-    	     horizontal_components[d] = v[d];
-    	 } 
-    	
-    	else if (coordinate_system == Utilities::Coordinates::spherical)
-    	{
-    	  std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components (v_origin, v);
-    	  vertical_component = v_une[0];
-    	  for (unsigned int d=0; d < dim-1; d++)
-    	     horizontal_components[d] = v_une[d+1];
-    	}   	
-    	else 
+      if (coordinate_system == Utilities::Coordinates::cartesian)
+        {
+          vertical_component = v[dim-1];
+          Tensor<1,dim-1> horizontal_components;
+
+          for (unsigned int d=0; d < dim-1; d++)
+            horizontal_components[d] = v[d];
+        }
+
+      else if (coordinate_system == Utilities::Coordinates::spherical)
+        {
+          std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components (v_origin, v);
+          vertical_component = v_une[0];
+          for (unsigned int d=0; d < dim-1; d++)
+            horizontal_components[d] = v_une[d+1];
+        }
+      else
         {
           AssertThrow(false, ExcNotImplemented());
           return numbers::signaling_nan<double>();
-        }	
+        }
 
-  	    inclination_angle = std::atan2(vertical_component, horizontal_components.norm());
-    	return inclination_angle * radian_to_degree;
-     }
+      inclination_angle = std::atan2(vertical_component, horizontal_components.norm());
+      return inclination_angle * radian_to_degree;
+    }
 
     template <int dim>
     double compute_vector_azimuth_wrt_north (const Point<dim> &v_origin,
-    		                                  const Tensor<1,dim> &v)
+                                             const Tensor<1,dim> &v)
     {
-       double  azimuth;
-       double return_value;
-   	   const double radian_to_degree = 180. / numbers::PI;
-       Tensor<1,dim-1> horizontal_components;
-       double north_component;
-	   switch (dim)
-	   {
-		 case 2:
-		 {
-			AssertThrow(false,ExcNotImplemented());
-			return numbers::signaling_nan<double>();
-			break;
-		 }
-		 case 3:
-		 {
-			std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components<dim>(v_origin, v);
-			north_component = v_une[2];
-			for (unsigned int d=0; d < dim-1; d++)
-			horizontal_components[d] = v_une[d+1];
-		    //if (v_une[1] > 0.0 && azimuth > numbers::PI/2)
-		      //  return_value =   (-numbers::PI + azimuth) * radian_to_degree;
-		    //else
-		    	return_value = (horizontal_components[0] <0) ?
-		    			        std::asin(horizontal_components[1] / horizontal_components.norm()) + numbers::PI/2
-							   :
-								std::acos(north_component / horizontal_components.norm()) ;
+      double  azimuth;
+      double return_value;
+      const double radian_to_degree = 180. / numbers::PI;
+      Tensor<1,dim-1> horizontal_components;
+      double north_component;
+      switch (dim)
+        {
+          case 2:
+          {
+            AssertThrow(false,ExcNotImplemented());
+            return numbers::signaling_nan<double>();
+            break;
+          }
+          case 3:
+          {
+            std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components<dim>(v_origin, v);
+            north_component = v_une[2];
+            for (unsigned int d=0; d < dim-1; d++)
+              horizontal_components[d] = v_une[d+1];
+            //if (v_une[1] > 0.0 && azimuth > numbers::PI/2)
+            //  return_value =   (-numbers::PI + azimuth) * radian_to_degree;
+            //else
+            return_value = (horizontal_components[0] <0) ?
+                           std::asin(horizontal_components[1] / horizontal_components.norm()) + numbers::PI/2
+                           :
+                           std::acos(north_component / horizontal_components.norm()) ;
 
-		    return (return_value > numbers::PI/2)
-		    		?
-		    		(return_value - numbers::PI)* radian_to_degree
-					:
-					return_value * radian_to_degree;
+            return (return_value > numbers::PI/2)
+                   ?
+                   (return_value - numbers::PI)* radian_to_degree
+                   :
+                   return_value * radian_to_degree;
 
-		    break;
-		 }
-		 default:
-		 {
-			 AssertThrow(false,ExcNotImplemented());
-		 }
-	    }
-	   return numbers::signaling_nan<double>();
+            break;
+          }
+          default:
+          {
+            AssertThrow(false,ExcNotImplemented());
+          }
+        }
+      return numbers::signaling_nan<double>();
     }
-    	
+
     template <int dim>
     std_cxx11::array<double,dim>
     cartesian_to_spherical_components (const Point<dim> &v_origin, const Tensor<1,dim> &v)
     {
-    	std_cxx11::array<double,dim> return_value;
-    	std_cxx11::array<Tensor<1,dim>,dim> basis;
-    	std_cxx11::array<double,dim> scoord = Utilities::Coordinates::cartesian_to_spherical_coordinates(v_origin);
+      std_cxx11::array<double,dim> return_value;
+      std_cxx11::array<Tensor<1,dim>,dim> basis;
+      std_cxx11::array<double,dim> scoord = Utilities::Coordinates::cartesian_to_spherical_coordinates(v_origin);
 
-    	   switch (dim)
-    	   {
-    	     case 2:
-    	     {
-    	    	 basis[0][0] = std::cos(scoord[1]);
-    	    	 basis[0][1] = std::sin(scoord[1]);
-    	    	 basis[1][0] = -basis[0][1];
-    	    	 basis[1][1] = -basis[0][0];
-    	    	 break;
-    	     }
-    	     case 3:
-    	     {
-    	    	 basis[0][0] = std::sin(scoord[2]) * std::cos(scoord[1]);
-    	    	 basis[0][1] = std::sin(scoord[2]) * std::sin(scoord[1]);
-    	    	 basis[0][2] = std::cos(scoord[2]);
-    	    	 basis[1][0] = std::cos(scoord[2]) * std::cos(scoord[1]);
-    	    	 basis[1][1] = std::cos(scoord[2]) * std::sin(scoord[1]);
-    	    	 basis[1][2] = -std::sin(scoord[2]);
-    	    	 basis[2][0] = -std::sin(scoord[1]);
-    	    	 basis[2][1] = std::cos(scoord[1]);
-    	    	 basis[2][2] = 0.0;
-    	    	 break;
-    	     }
-    	     default:
-    	     {
-    	         AssertThrow(false,ExcNotImplemented());
-    	     }
-    	   }
+      switch (dim)
+        {
+          case 2:
+          {
+            basis[0][0] = std::cos(scoord[1]);
+            basis[0][1] = std::sin(scoord[1]);
+            basis[1][0] = -basis[0][1];
+            basis[1][1] = -basis[0][0];
+            break;
+          }
+          case 3:
+          {
+            basis[0][0] = std::sin(scoord[2]) * std::cos(scoord[1]);
+            basis[0][1] = std::sin(scoord[2]) * std::sin(scoord[1]);
+            basis[0][2] = std::cos(scoord[2]);
+            basis[1][0] = std::cos(scoord[2]) * std::cos(scoord[1]);
+            basis[1][1] = std::cos(scoord[2]) * std::sin(scoord[1]);
+            basis[1][2] = -std::sin(scoord[2]);
+            basis[2][0] = -std::sin(scoord[1]);
+            basis[2][1] = std::cos(scoord[1]);
+            basis[2][2] = 0.0;
+            break;
+          }
+          default:
+          {
+            AssertThrow(false,ExcNotImplemented());
+          }
+        }
 
-           for (unsigned int d=0; d < dim; d++)
-        	     return_value[d] = scalar_product (basis[d], v);
+      for (unsigned int d=0; d < dim; d++)
+        return_value[d] = scalar_product (basis[d], v);
 
-           return return_value;
-      }
+      return return_value;
+    }
 
     std::vector<unsigned int>
     get_sorted_indexes (const std::vector<double> &v)
-	{
+    {
       std::vector<unsigned int> index(v.size());
       iota(index.begin(), index.end(), 0);
 
       // sort indexes based on comparing values in v
       sort(index.begin(), index.end(),
-    	  [&v](unsigned int i1, unsigned int i2) {return v[i1] > v[i2];});
+           [&v](unsigned int i1, unsigned int i2)
+      {
+        return v[i1] > v[i2];
+      });
       return index;
-	}
+    }
 
 
 // Explicit instantiations
@@ -2660,12 +2663,12 @@ namespace aspect
     template class AsciiDataProfile<3>;
 
     template double compute_vector_inclination_wrt_horizontal<2>(const Point<2> &v_origin,
-        		                                               const Tensor<1,2> &v,
-        		                                               const Utilities::Coordinates::CoordinateSystem &coordinate_system);
+                                                                 const Tensor<1,2> &v,
+                                                                 const Utilities::Coordinates::CoordinateSystem &coordinate_system);
 
     template double compute_vector_inclination_wrt_horizontal<3>(const Point<3> &v_origin,
-          		                                               const Tensor<1,3> &v,
-          		                                               const Utilities::Coordinates::CoordinateSystem &coordinate_system);
+                                                                 const Tensor<1,3> &v,
+                                                                 const Utilities::Coordinates::CoordinateSystem &coordinate_system);
 
     template double compute_vector_azimuth_wrt_north(const Point<2> &v_origin, const Tensor<1,2> &v);
     template double compute_vector_azimuth_wrt_north(const Point<3> &v_origin, const Tensor<1,3> &v);
@@ -2677,8 +2680,8 @@ namespace aspect
     template Point<3> Coordinates::spherical_to_cartesian_coordinates<3>(const std_cxx11::array<double,3> &scoord);
 
     template Point<2> Coordinates::ellipsoidal_to_cartesian_coordinates<2>(const std_cxx11::array<double,2> &phi_theta_d,
-                                                                          const double &semi_major_axis_a,
-                                                                          const double &eccentricity);
+                                                                           const double &semi_major_axis_a,
+                                                                           const double &eccentricity);
 
     template Point<3> Coordinates::ellipsoidal_to_cartesian_coordinates<3>(const std_cxx11::array<double,3> &phi_theta_d,
                                                                            const double &semi_major_axis_a,

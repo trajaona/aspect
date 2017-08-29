@@ -176,7 +176,7 @@ namespace aspect
         depth,
         cartesian,
         spherical,
-		ellipsoidal,
+        ellipsoidal,
         invalid
       };
 
@@ -1031,14 +1031,14 @@ namespace aspect
      * entry in the list must match one of the allowed operations.
      */
     std::vector<Operator> create_model_operator_list(const std::vector<std::string> &operator_names);
-    
+
     /*
-     * Calculate 2D or 3D vector inclination with resepect to the horizontal plan. 
+     * Calculate 2D or 3D vector inclination with resepect to the horizontal plan.
      */
     template <int dim>
     double compute_vector_inclination_wrt_horizontal (const Point<dim> &position,
-    		                                          const Tensor<1,dim> &v,
-													  const Utilities::Coordinates::CoordinateSystem &coordinate_system);
+                                                      const Tensor<1,dim> &v,
+                                                      const Utilities::Coordinates::CoordinateSystem &coordinate_system);
     template <int dim>
     double compute_vector_azimuth_wrt_north (const Point<dim> &v_origin, const Tensor<1,dim> &v);
 

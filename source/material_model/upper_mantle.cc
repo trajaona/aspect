@@ -35,32 +35,32 @@ namespace aspect
     UpperMantle<dim>::
     compute_volume_fractions( const std::vector<double> &compositional_fields) const
     {
-          std::vector<double> volume_fractions( compositional_fields.size()+1);
+      std::vector<double> volume_fractions( compositional_fields.size()+1);
 
-          // clip the compositional fields so they are between zero and one
-          std::vector<double> x_comp = compositional_fields;
-          for ( unsigned int i=0; i < x_comp.size(); ++i)
-            x_comp[i] = std::min(std::max(x_comp[i], 0.0), 1.0);
+      // clip the compositional fields so they are between zero and one
+      std::vector<double> x_comp = compositional_fields;
+      for ( unsigned int i=0; i < x_comp.size(); ++i)
+        x_comp[i] = std::min(std::max(x_comp[i], 0.0), 1.0);
 
-          // sum the compositional fields for normalization purposes
-          double sum_composition = 0.0;
-          for ( unsigned int i=0; i < x_comp.size(); ++i)
-            sum_composition += x_comp[i];
+      // sum the compositional fields for normalization purposes
+      double sum_composition = 0.0;
+      for ( unsigned int i=0; i < x_comp.size(); ++i)
+        sum_composition += x_comp[i];
 
-          if (sum_composition >= 1.0)
-            {
-              volume_fractions[0] = 0.0;  // background mantle
-              for ( unsigned int i=1; i <= x_comp.size(); ++i)
-                volume_fractions[i] = x_comp[i-1]/sum_composition;
-            }
-          else
-            {
-              volume_fractions[0] = 1.0 - sum_composition; // background mantle
-              for ( unsigned int i=1; i <= x_comp.size(); ++i)
-                volume_fractions[i] = x_comp[i-1];
-            }
-          return volume_fractions;
-     }
+      if (sum_composition >= 1.0)
+        {
+          volume_fractions[0] = 0.0;  // background mantle
+          for ( unsigned int i=1; i <= x_comp.size(); ++i)
+            volume_fractions[i] = x_comp[i-1]/sum_composition;
+        }
+      else
+        {
+          volume_fractions[0] = 1.0 - sum_composition; // background mantle
+          for ( unsigned int i=1; i <= x_comp.size(); ++i)
+            volume_fractions[i] = x_comp[i-1];
+        }
+      return volume_fractions;
+    }
 
     template <int dim>
     double
@@ -117,10 +117,10 @@ namespace aspect
     diffusion_creep (const double &pressure,
                      const double &temperature) const
     {
-    	return  0.5 * std::pow(prefactor_diffusion,-1/stress_exponent_diffusion) *
-    	              std::exp(std::max((activation_energie_diffusion + pressure*activation_volume_diffusion),0.0)/
-    	              (constants::gas_constant*temperature*stress_exponent_diffusion)) *
-    	              std::pow(grain_size, grain_size_exponent_diffusion);
+      return  0.5 * std::pow(prefactor_diffusion,-1/stress_exponent_diffusion) *
+              std::exp(std::max((activation_energie_diffusion + pressure*activation_volume_diffusion),0.0)/
+                       (constants::gas_constant*temperature*stress_exponent_diffusion)) *
+              std::pow(grain_size, grain_size_exponent_diffusion);
     }
 
     template <int dim>
@@ -130,23 +130,23 @@ namespace aspect
                        const double &temperature,
                        const SymmetricTensor<2,dim> &strain_rate) const
     {
-        const double edot_ii = ( (this->get_timestep_number() == 0 && strain_rate.norm() <= std::numeric_limits<double>::min())
-                                       ?
-                                       ref_strain_rate
-                                       :
-                                       std::max(std::sqrt(std::fabs(second_invariant(deviator(strain_rate)))),
-                                                min_strain_rate) );
+      const double edot_ii = ( (this->get_timestep_number() == 0 && strain_rate.norm() <= std::numeric_limits<double>::min())
+                               ?
+                               ref_strain_rate
+                               :
+                               std::max(std::sqrt(std::fabs(second_invariant(deviator(strain_rate)))),
+                                        min_strain_rate) );
 
-        return 0.5 * std::pow(prefactor_dislocation,-1/stress_exponent_dislocation) *
-                     std::exp(std::max((activation_energie_dislocation + pressure*activation_volume_dislocation),0.0)/
-                     (constants::gas_constant*temperature*stress_exponent_dislocation)) *
-                     std::pow(edot_ii,((1. - stress_exponent_dislocation)/stress_exponent_dislocation));
+      return 0.5 * std::pow(prefactor_dislocation,-1/stress_exponent_dislocation) *
+             std::exp(std::max((activation_energie_dislocation + pressure*activation_volume_dislocation),0.0)/
+                      (constants::gas_constant*temperature*stress_exponent_dislocation)) *
+             std::pow(edot_ii,((1. - stress_exponent_dislocation)/stress_exponent_dislocation));
     }
-    
+
     template <>
     void
     UpperMantle<2>::evaluate(const MaterialModel::MaterialModelInputs<2> &in,
-                            MaterialModel::MaterialModelOutputs<2> &out) const
+                             MaterialModel::MaterialModelOutputs<2> &out) const
     {
       Assert (false, ExcNotImplemented());
       //return 0;
@@ -169,45 +169,45 @@ namespace aspect
           const Point<3> pos = in.position[i];
           const double depth = this->get_geometry_model().depth(in.position[i]);
           const std::vector<double> &composition = in.composition[i];
-		  std::vector<double> composition_viscosities (composition.size()+1);
-		  std::vector<double> composition_densities (composition.size()+1);
+          std::vector<double> composition_viscosities (composition.size()+1);
+          std::vector<double> composition_densities (composition.size()+1);
 
-		  AssertThrow(this->introspection().compositional_name_exists("crust"),
-		              ExcMessage("Material model Upper mantle works only works if there is a "
-		                         "compositional field called crust."));
+          AssertThrow(this->introspection().compositional_name_exists("crust"),
+                      ExcMessage("Material model Upper mantle works only works if there is a "
+                                 "compositional field called crust."));
 
-		  AssertThrow(this->introspection().compositional_name_exists("mantle_lithosphere"),
-		 		      ExcMessage("Material model Upper mantle works only works if there is a "
-		 		                  "compositional field called mantle_lithosphere."));
+          AssertThrow(this->introspection().compositional_name_exists("mantle_lithosphere"),
+                      ExcMessage("Material model Upper mantle works only works if there is a "
+                                 "compositional field called mantle_lithosphere."));
 
-		  // The default index for the first compositional fields is 0. During the compositioning
-		  // the crust needs have index 1 because the index 0 is by default the background mantle.
-		  const unsigned int crust_idx = this->introspection().compositional_index_for_name("crust") + 1;
-		  const unsigned int mantle_lithosphere_idx = this->introspection().compositional_index_for_name("mantle_lithosphere") + 1;
+          // The default index for the first compositional fields is 0. During the compositioning
+          // the crust needs have index 1 because the index 0 is by default the background mantle.
+          const unsigned int crust_idx = this->introspection().compositional_index_for_name("crust") + 1;
+          const unsigned int mantle_lithosphere_idx = this->introspection().compositional_index_for_name("mantle_lithosphere") + 1;
 
-	      // Compositional densities.
+          // Compositional densities.
           // The viscosity of the crust is determined by the base model.
           // The rheology of the lithosphere is governed by disolcation creep flow law
           // and diffusion creep for of the sub-lithospheric mantle.
-		  for (unsigned int c=0; c <= in.composition[i].size() ; ++c)
-		  {
-	      if (c == crust_idx)
-	    	 composition_densities[c] = 2700.0 * (1 - thermal_alpha * (in.temperature[i] - reference_T));
-	      else
-	    	 composition_densities[c] = 3400.0 * (1 - thermal_alpha * (in.temperature[i] - reference_T));
-		  }
-		  out.densities[i] = average_value (composition, composition_densities, viscosity_averaging);
-
-		  // Compositional viscosities.
           for (unsigned int c=0; c <= in.composition[i].size() ; ++c)
-          {
-            if (c == crust_idx)
-            	composition_viscosities[c] =  crust_out.viscosities[i];
-            else if (c == mantle_lithosphere_idx)
-            	composition_viscosities[c] = std::min(std::max(dislocation_creep (pressure, temperature, in.strain_rate[i]), min_visc), max_visc);
-            else
-            	composition_viscosities[c] = std::min(std::max(diffusion_creep (pressure, temperature), min_visc), max_visc);
-           }
+            {
+              if (c == crust_idx)
+                composition_densities[c] = 2700.0 * (1 - thermal_alpha * (in.temperature[i] - reference_T));
+              else
+                composition_densities[c] = 3400.0 * (1 - thermal_alpha * (in.temperature[i] - reference_T));
+            }
+          out.densities[i] = average_value (composition, composition_densities, viscosity_averaging);
+
+          // Compositional viscosities.
+          for (unsigned int c=0; c <= in.composition[i].size() ; ++c)
+            {
+              if (c == crust_idx)
+                composition_viscosities[c] =  crust_out.viscosities[i];
+              else if (c == mantle_lithosphere_idx)
+                composition_viscosities[c] = std::min(std::max(dislocation_creep (pressure, temperature, in.strain_rate[i]), min_visc), max_visc);
+              else
+                composition_viscosities[c] = std::min(std::max(diffusion_creep (pressure, temperature), min_visc), max_visc);
+            }
 
           out.viscosities[i] = average_value(composition, composition_viscosities, viscosity_averaging);
 
@@ -284,7 +284,7 @@ namespace aspect
         prm.enter_subsection("Upper mantle");
         {
           prm.declare_entry ("Reference strain rate","1.0e-15",Patterns::Double(0),
-                              "Reference strain rate for first time step. Units: $1 / s$");
+                             "Reference strain rate for first time step. Units: $1 / s$");
           prm.declare_entry ("Reference density", "3400",
                              Patterns::Double (0),
                              "Reference density $\\rho_0$. Units: $kg/m^3$.");
@@ -369,7 +369,7 @@ namespace aspect
                              Patterns::List(Patterns::Double(0)),
                              "Viscosity prefactor, $A$, for background mantle,  "
                              "Units: $Pa^{-n_{diffusion}} m^{n_{diffusion}/m_{diffusion}} s^{-1}$");
-          
+
           //dislocation creep parameters
           prm.declare_entry ("Activation energie for dislocation creep", "430e3",
                              Patterns::List(Patterns::Double(0)),
@@ -394,7 +394,7 @@ namespace aspect
                              "with different viscosities, we need to come up with an average "
                              "viscosity at that point.  Select a weighted harmonic, arithmetic, "
                              "geometric, or maximum composition.");
-          
+
         }
         prm.leave_subsection();
       }
@@ -417,14 +417,14 @@ namespace aspect
 
           // Crustal viscosity material model
           AssertThrow( prm.get("Base model") != "upper mantle",
-                      ExcMessage("You may not use ``edge driven'' as the base model for "
+                       ExcMessage("You may not use ``edge driven'' as the base model for "
                                   "a this material model.") );
           // create the crustal viscosity model and initialize its SimulatorAccess base
           // class; it will get a chance to read its parameters below after we
           // leave the current section
           base_model.reset(create_material_model<dim>(prm.get("Base model")));
           if (SimulatorAccess<dim> *sim = dynamic_cast<SimulatorAccess<dim>*>(base_model.get()))
-             sim->initialize_simulator (this->get_simulator());
+            sim->initialize_simulator (this->get_simulator());
 
           composition_viscosity_prefactor = prm.get_double ("Composition viscosity prefactor");
           thermal_viscosity_exponent      = prm.get_double ("Thermal viscosity exponent");
@@ -447,7 +447,7 @@ namespace aspect
           grain_size_exponent_diffusion   = prm.get_double ("Grain size exponent for diffusion creep");
           prefactor_diffusion             = prm.get_double ("Prefactor for diffusion creep");
           C_OH                            = prm.get_double ("Water content");
-          
+
           //diffusion creep parameters;
           activation_energie_dislocation  = prm.get_double ("Activation energie for dislocation creep");
           activation_volume_dislocation   = prm.get_double ("Activation volume for dislocation creep");
@@ -457,15 +457,15 @@ namespace aspect
 
           // Rheological parameters
           if (prm.get ("Viscosity averaging scheme") == "harmonic")
-              viscosity_averaging = harmonic;
+            viscosity_averaging = harmonic;
           else if (prm.get ("Viscosity averaging scheme") == "arithmetic")
-              viscosity_averaging = arithmetic;
+            viscosity_averaging = arithmetic;
           else if (prm.get ("Viscosity averaging scheme") == "geometric")
-              viscosity_averaging = geometric;
+            viscosity_averaging = geometric;
           else if (prm.get ("Viscosity averaging scheme") == "maximum composition")
-              viscosity_averaging = maximum_composition;
+            viscosity_averaging = maximum_composition;
           else
-              AssertThrow(false, ExcMessage("Not a valid viscosity averaging scheme"));
+            AssertThrow(false, ExcMessage("Not a valid viscosity averaging scheme"));
         }
         prm.leave_subsection();
       }
@@ -502,6 +502,6 @@ namespace aspect
                                    "A material model for upper mantle flow calculation. There reference density, "
                                    "of the crust is 2700 $kg/m^3$ and 3400 $kg/m^3$ for the mantle. "
                                    "The rheology of the lithosphere and the sublithospheric mantle "
-			                       "follows dislocation creep and diffusion creep flow laws respectively (Karato and Wu, 1993)")
+                                   "follows dislocation creep and diffusion creep flow laws respectively (Karato and Wu, 1993)")
   }
 }

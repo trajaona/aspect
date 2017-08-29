@@ -109,7 +109,7 @@ namespace aspect
         double thermal_viscosity_exponent;
         double thermal_alpha;
         double reference_specific_heat;
-        
+
         /*
          * Rheology parameters
          */
@@ -152,7 +152,7 @@ namespace aspect
 
         double diffusion_creep (const double &pressure,
                                 const double &temperature) const;
-        
+
         double dislocation_creep (const double &pressure,
                                   const double &temperature,
                                   const SymmetricTensor<2,dim> &strain_rate) const;
