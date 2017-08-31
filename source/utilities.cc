@@ -2634,6 +2634,133 @@ namespace aspect
       return index;
     }
 
+    template <int dim>
+    Eigen<dim>::Eigen (SymmetricTensor<2,dim> &A)
+    :
+	eigval(A)
+	{}
+
+	template <int dim>
+	std::pair<std::pair<unsigned int , unsigned int>, double>
+    Eigen<dim>::max_of_diagonal(Tensor<2,dim> &M,
+    		                    std::pair<unsigned int, unsigned int> &indexes, double  &max_diag)
+	{
+      max_diag = 0.0;
+	  for (unsigned int i = 0; i <dim ; ++i)
+	  {
+		  for (unsigned int j = 0; j <dim; ++j)
+		  {
+			  if (std::fabs(M[i][j]) > max_diag && i!=j)
+			  {
+				  max_diag = std::fabs(M[i][j]);
+				  indexes.first = i;
+				  indexes.second = j;
+			  }
+		  }
+	  }
+
+	  return std::make_pair(indexes,max_diag);
+	}
+
+	template <int dim>
+	void
+	Eigen<dim>::rotate (Tensor<2, dim> &M,
+                        std::pair<unsigned int, unsigned int> &indexes,
+						Tensor<2, dim> &eigvec)
+	{
+	  double s;
+	  double c;
+	  unsigned int k = indexes.first;
+	  unsigned int l = indexes.second;
+
+	  if (M[k][l] != 0.0)
+	  {
+		double t, tau;
+		tau = (M[l][l] - M[k][k]) / (2 * M[k][l]);
+
+		if (tau > 0.0)
+		    t = 1.0 / (tau + std::sqrt(1.0 + tau * tau));
+		else
+			t = -1.0 / (-tau + std::sqrt(1.0 + tau * tau));
+
+	  c = 1 / std::sqrt(1.0 + t*t);
+	  s = c*t;
+	  }
+	  else
+	  {
+		  c = 1.0;
+		  s = 0.0;
+	  }
+
+	  double m_kk, m_ll, m_ik, m_il, eigvec_ik, eigvec_il;
+	  m_kk = M[k][k];
+	  m_ll = M[l][l];
+	  // changing the matrix elements with indices k, l
+	  M[k][k] = c*c*m_kk - 2.0*c*s*M[k][l] + s*s*m_ll;
+	  M[l][l] = s*s*m_kk + 2.0*c*s*M[k][l] + c*c*m_ll;
+	  M[k][l] = 0.0;
+	  M[l][k] = 0.0;
+
+	  // and the we change the remaining elements
+	  for (unsigned int i =0; i < dim; ++i)
+	  {
+		  if (i != k && i != l)
+		  {
+			  m_ik = M[i][k];
+			  m_il = M[i][l];
+			  M[i][k] = c*m_ik - s*m_il;
+			  M[k][i] = M[i][k];
+			  M[i][l] = c*m_il + s*m_ik;
+			  M[l][i] = M[i][l];
+		  }
+	   // Finally, we compute the new eigenvectors
+	   eigvec_ik = eigvec[i][k];
+	   eigvec_il = eigvec[i][l];
+	   eigvec[i][k] = c*eigvec_ik - s*eigvec_il;
+	   eigvec[i][l] = c*eigvec_il + s*eigvec_ik;
+	  }
+	  return;
+	 }
+
+	template<int dim>
+	void
+	Eigen<dim>::solve()
+	{
+	  int iterations = 0;
+      double max_diag;
+      std::pair<unsigned int, unsigned int> indexes;
+	  int max_number_iteration = dim * dim *dim;
+	  eigvec = unit_symmetric_tensor<dim>();
+
+	  std::pair<std::pair<unsigned int , unsigned int>, double> indexes_maxdiag =
+	  Eigen<dim>::max_of_diagonal(eigval, indexes, max_diag);
+	  max_diag = indexes_maxdiag.second;
+
+	  while (std::fabs(max_diag) > 0.0 && iterations < max_number_iteration)
+	  {
+		 indexes_maxdiag = Eigen<dim>::max_of_diagonal(eigval, indexes, max_diag);
+		 max_diag = indexes_maxdiag.second;
+	     Eigen<dim>::rotate(eigval,
+	    		            indexes_maxdiag.first,
+							eigvec);
+	  }
+	}
+
+	template<int dim>
+	Tensor<2, dim>
+	Eigen<dim>::eigenvalue()
+	{
+		Eigen<dim>::solve();
+		return eigval;
+	}
+
+	template<int dim>
+	Tensor<2, dim>
+	Eigen<dim>::eigenvector()
+	{
+		Eigen<dim>::solve();
+		return eigvec;
+	}
 
 // Explicit instantiations
 
@@ -2648,7 +2775,8 @@ namespace aspect
     ASPECT_INSTANTIATE(INSTANTIATE)
 
 
-
+    template class Eigen<2>;
+    template class Eigen<3>;
     template class AsciiDataLookup<1>;
     template class AsciiDataLookup<2>;
     template class AsciiDataLookup<3>;

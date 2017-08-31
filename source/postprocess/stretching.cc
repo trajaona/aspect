@@ -122,12 +122,35 @@ namespace aspect
           polar::polar_decomposition(F, Q, L);
 
           for (unsigned i = 0; i < L.size1 (); ++ i)
+          {
             for (unsigned j = 0; j < L.size2 (); ++ j)
               stretching_tensor (i, j) = L (i, j);
+          }
 
           Eigen::EigenSolver<Eigen::MatrixXf> es (stretching_tensor);
           eigen_values =  es.pseudoEigenvalueMatrix();
           eigen_vectors = es.pseudoEigenvectors();
+          std::cout<<"-------Eigensolver--------"<<std::endl;
+          std::cout<<eigen_values<<std::endl;
+          std::cout<< eigen_vectors<<std::endl;
+          std::cout<<"-------End--------"<<std::endl;
+          std::cout<<"-------My eigen--------"<<std::endl;
+
+          SymmetricTensor<2,dim> T;
+
+          for (unsigned i = 0; i < dim; ++ i)
+          {
+               for (unsigned j = 0; j < dim; ++ j)
+                     T[i][j] = stretching_tensor(i,j);
+          }
+
+          aspect::Utilities::Eigen<dim> test(T);
+          std::cout<<" Here "<<std::endl;
+          std::cout<<test.eigenvector()<<std::endl;
+          std::cout<<test.eigenvalue()<<std::endl;
+          std::cout<<"-------End--------"<<std::endl;
+          //std::cout<<"  "<<std::endl;
+          //std::cout<<"  "<<std::endl;
 
           for (unsigned int k = 0; k < dim; k++)
             lambda[k] = std::fabs(eigen_values(k,k));
@@ -181,6 +204,7 @@ namespace aspect
               f << '\n';
             }
         }
+
       AssertThrow (f, ExcMessage("Writing data to <" + filename +
                                  "> did not succeed in the `point values' "
                                  "postprocessor."));

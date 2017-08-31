@@ -1052,7 +1052,33 @@ namespace aspect
     std::vector<unsigned int>
     get_sorted_indexes (const std::vector<double> &v);
 
+    template <int dim>
+    class Eigen
+    {
+          public:
 
+          Eigen (SymmetricTensor<2,dim> &A);
+
+          void solve();
+
+          Tensor<2, dim> eigenvalue();
+
+          Tensor<2,dim> eigenvector();
+
+          std::pair<std::pair<unsigned int , unsigned int>, double>
+		  max_of_diagonal(Tensor<2,dim> &M,
+				          std::pair<unsigned int , unsigned int> &index, double &max_diag);
+
+           void
+			rotate (Tensor<2, dim> &M,
+					std::pair<unsigned int, unsigned int> &indexes,
+					Tensor<2, dim> &eigvec);
+
+          private:
+           Tensor<2, dim> eigval;
+           Tensor<2, dim> eigvec;
+
+      };
 
   }
 }
