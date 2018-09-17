@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2016 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2017 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -50,17 +50,17 @@ namespace aspect
       const GeometryModel::Interface<dim> *geometry_model = &this->get_geometry_model();
       double R1;
 
-      if (dynamic_cast<const GeometryModel::Sphere<dim>*>(geometry_model) != 0)
+      if (dynamic_cast<const GeometryModel::Sphere<dim>*>(geometry_model) != nullptr)
         {
           R1 = dynamic_cast<const GeometryModel::Sphere<dim>&>
                (this->get_geometry_model()).radius();
         }
-      else if (dynamic_cast<const GeometryModel::SphericalShell<dim>*>(geometry_model) != 0)
+      else if (dynamic_cast<const GeometryModel::SphericalShell<dim>*>(geometry_model) != nullptr)
         {
           R1 = dynamic_cast<const GeometryModel::SphericalShell<dim>&>
                (this->get_geometry_model()).outer_radius();
         }
-      else if (dynamic_cast<const GeometryModel::Chunk<dim>*>(geometry_model) != 0)
+      else if (dynamic_cast<const GeometryModel::Chunk<dim>*>(geometry_model) != nullptr)
         {
           R1 = dynamic_cast<const GeometryModel::Chunk<dim>&>
                (this->get_geometry_model()).outer_radius();
@@ -201,20 +201,20 @@ namespace aspect
       const GeometryModel::Interface<dim> *geometry_model = &this->get_geometry_model();
       double R0, R1;
 
-      if (dynamic_cast<const GeometryModel::Sphere<dim>*>(geometry_model) != 0)
+      if (dynamic_cast<const GeometryModel::Sphere<dim>*>(geometry_model) != nullptr)
         {
           R0 = 0.;
           R1 = dynamic_cast<const GeometryModel::Sphere<dim>&>
                (this->get_geometry_model()).radius();
         }
-      else if (dynamic_cast<const GeometryModel::SphericalShell<dim>*>(geometry_model) != 0)
+      else if (dynamic_cast<const GeometryModel::SphericalShell<dim>*>(geometry_model) != nullptr)
         {
           R0 = dynamic_cast<const GeometryModel::SphericalShell<dim>&>
                (this->get_geometry_model()).inner_radius();
           R1 = dynamic_cast<const GeometryModel::SphericalShell<dim>&>
                (this->get_geometry_model()).outer_radius();
         }
-      else if (dynamic_cast<const GeometryModel::Chunk<dim>*>(geometry_model) != 0)
+      else if (dynamic_cast<const GeometryModel::Chunk<dim>*>(geometry_model) != nullptr)
         {
           R0 = dynamic_cast<const GeometryModel::Chunk<dim>&>
                (this->get_geometry_model()).inner_radius();

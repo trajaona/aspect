@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -230,7 +230,7 @@ namespace aspect
                                    "The implementation of this material model is somewhat expensive "
                                    "because it has to evaluate all material coefficients of all underlying "
                                    "material models. Consequently, if performance of assembly and postprocessing "
-                                   "is important, then implementing a separate separate material model is "
+                                   "is important, then implementing a separate material model is "
                                    "a better choice than using this material model."
                                   )
   }

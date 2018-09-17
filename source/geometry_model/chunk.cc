@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2017 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -27,8 +27,10 @@
 #include <deal.II/grid/tria_iterator.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/grid_tools.h>
+
+#if !DEAL_II_VERSION_GTE(9,0,0)
 #include <deal.II/grid/tria_boundary_lib.h>
-#include <deal.II/grid/manifold_lib.h>
+#endif
 
 
 namespace aspect
@@ -40,6 +42,17 @@ namespace aspect
       :
       point1_lon(0.0)
     {}
+
+
+
+    template <int dim>
+    Chunk<dim>::ChunkGeometry::ChunkGeometry(const ChunkGeometry &other)
+      :
+      ChartManifold<dim,dim>(other),
+      point1_lon(other.point1_lon)
+    {}
+
+
 
     template <int dim>
     DerivativeForm<1,dim,dim>
@@ -88,6 +101,7 @@ namespace aspect
     }
 
 
+
     template <int dim>
     Point<dim>
     Chunk<dim>::ChunkGeometry::
@@ -114,6 +128,8 @@ namespace aspect
         }
       return output_vertex;
     }
+
+
 
     template <int dim>
     Point<dim>
@@ -159,6 +175,8 @@ namespace aspect
       return output_vertex;
     }
 
+
+
     template <int dim>
     void
     Chunk<dim>::ChunkGeometry::
@@ -166,6 +184,20 @@ namespace aspect
     {
       point1_lon = p1_lon;
     }
+
+
+
+#if DEAL_II_VERSION_GTE(9,0,0)
+    template <int dim>
+    std::unique_ptr<Manifold<dim,dim> >
+    Chunk<dim>::ChunkGeometry::
+    clone() const
+    {
+      return std_cxx14::make_unique<ChunkGeometry>(*this);
+    }
+#endif
+
+
 
 #if !DEAL_II_VERSION_GTE(9,0,0)
     template <int dim>
@@ -178,6 +210,8 @@ namespace aspect
 
     }
 #endif
+
+
 
     template <int dim>
     void
@@ -236,10 +270,12 @@ namespace aspect
 #endif
 
       // Transform box into spherical chunk
-      GridTools::transform (std_cxx11::bind(&ChunkGeometry::push_forward,
-                                            std_cxx11::cref(manifold),
-                                            std_cxx11::_1),
-                            coarse_grid);
+      GridTools::transform (
+        [&](const Point<dim> &p) -> Point<dim>
+      {
+        return manifold.push_forward(p);
+      },
+      coarse_grid);
 
       // Deal with a curved mesh
       // Attach the real manifold to slot 15.
@@ -326,12 +362,17 @@ namespace aspect
     Chunk<dim>::connect_to_signal (SimulatorSignals<dim> &signals)
     {
       // Connect the topography function to the signal
-      signals.pre_compute_no_normal_flux_constraints.connect (std_cxx11::bind (&Chunk<dim>::clear_manifold_ids,
-                                                                               std_cxx11::ref(*this),
-                                                                               std_cxx11::_1));
-      signals.post_compute_no_normal_flux_constraints.connect (std_cxx11::bind (&Chunk<dim>::set_manifold_ids,
-                                                                                std_cxx11::ref(*this),
-                                                                                std_cxx11::_1));
+      signals.pre_compute_no_normal_flux_constraints.connect (
+        [&](typename parallel::distributed::Triangulation<dim> &tria)
+      {
+        this->clear_manifold_ids(tria);
+      });
+
+      signals.post_compute_no_normal_flux_constraints.connect (
+        [&](typename parallel::distributed::Triangulation<dim> &tria)
+      {
+        this->set_manifold_ids(tria);
+      });
     }
 #endif
 
@@ -390,6 +431,7 @@ namespace aspect
     }
 
 
+
     template <int dim>
     double
     Chunk<dim>::
@@ -404,12 +446,23 @@ namespace aspect
     }
 
 
+
     template <int dim>
     double
     Chunk<dim>::depth(const Point<dim> &position) const
     {
       return std::min (std::max (point2[0]-position.norm(), 0.), maximal_depth());
     }
+
+
+
+    template <int dim>
+    double
+    Chunk<dim>::height_above_reference_surface(const Point<dim> &position) const
+    {
+      return position.norm()-point2[0];
+    }
+
 
 
     template <int dim>
@@ -438,6 +491,7 @@ namespace aspect
     }
 
 
+
     template <int dim>
     double
     Chunk<dim>::east_longitude () const
@@ -445,12 +499,16 @@ namespace aspect
       return point2[1];
     }
 
+
+
     template <int dim>
     double
     Chunk<dim>::longitude_range () const
     {
       return point2[1] - point1[1];
     }
+
+
 
     template <int dim>
     double
@@ -461,6 +519,7 @@ namespace aspect
       else
         return 0;
     }
+
 
 
     template <int dim>
@@ -474,6 +533,7 @@ namespace aspect
     }
 
 
+
     template <int dim>
     double
     Chunk<dim>::latitude_range () const
@@ -485,12 +545,15 @@ namespace aspect
     }
 
 
+
     template <int dim>
     double
     Chunk<dim>::maximal_depth() const
     {
       return point2[0]-point1[0];
     }
+
+
 
     template <int dim>
     double
@@ -499,6 +562,8 @@ namespace aspect
       return point1[0];
     }
 
+
+
     template <int dim>
     double
     Chunk<dim>::outer_radius () const
@@ -506,12 +571,16 @@ namespace aspect
       return point2[0];
     }
 
+
+
     template <int dim>
     bool
     Chunk<dim>::has_curved_elements() const
     {
       return true;
     }
+
+
 
     template <int dim>
     bool
@@ -521,7 +590,7 @@ namespace aspect
                   this->get_timestep_number() == 0,
                   ExcMessage("After displacement of the free surface, this function can no longer be used to determine whether a point lies in the domain or not."));
 
-      AssertThrow(dynamic_cast<const InitialTopographyModel::ZeroTopography<dim>*>(&this->get_initial_topography_model()) != 0,
+      AssertThrow(dynamic_cast<const InitialTopographyModel::ZeroTopography<dim>*>(&this->get_initial_topography_model()) != nullptr,
                   ExcMessage("After adding topography, this function can no longer be used to determine whether a point lies in the domain or not."));
 
       const Point<dim> spherical_point = manifold.pull_back(point);
@@ -533,6 +602,46 @@ namespace aspect
 
       return true;
     }
+
+
+
+    template <int dim>
+    std::array<double,dim>
+    Chunk<dim>::cartesian_to_natural_coordinates(const Point<dim> &position_point) const
+    {
+      // the chunk manifold has a order of radius, longitude, latitude.
+      // This is exactly what we need.
+      const Point<dim> transformed_point = manifold.pull_back(position_point);
+      std::array<double,dim> position_array;
+      for (unsigned int i = 0; i < dim; i++)
+        position_array[i] = transformed_point(i);
+
+      return position_array;
+    }
+
+
+
+    template <int dim>
+    aspect::Utilities::Coordinates::CoordinateSystem
+    Chunk<dim>::natural_coordinate_system() const
+    {
+      return aspect::Utilities::Coordinates::CoordinateSystem::spherical;
+    }
+
+
+
+    template <int dim>
+    Point<dim>
+    Chunk<dim>::natural_to_cartesian_coordinates(const std::array<double,dim> &position_tensor) const
+    {
+      Point<dim> position_point;
+      for (unsigned int i = 0; i < dim; i++)
+        position_point[i] = position_tensor[i];
+      const Point<dim> transformed_point = manifold.push_forward(position_point);
+
+      return transformed_point;
+    }
+
 
 
     template <int dim>
@@ -628,6 +737,10 @@ namespace aspect
 
               AssertThrow (point1[2] < point2[2],
                            ExcMessage ("Minimum latitude must be less than maximum latitude."));
+              AssertThrow (point1[2] > -0.5*numbers::PI,
+                           ExcMessage ("Minimum latitude needs to be larger than -90 degrees."));
+              AssertThrow (point2[2] < 0.5*numbers::PI,
+                           ExcMessage ("Maximum latitude needs to be less than 90 degrees."));
             }
 
         }
@@ -647,17 +760,30 @@ namespace aspect
                                    "chunk",
                                    "A geometry which can be described as a chunk of a spherical shell, "
                                    "bounded by lines of longitude, latitude and radius. "
-                                   "The minimum and maximum longitude, (latitude) and depth of the chunk "
+                                   "The minimum and maximum longitude, latitude (if in 3d) and depth of the chunk "
                                    "is set in the parameter file. The chunk geometry labels its "
                                    "2*dim sides as follows: ``west'' and ``east'': minimum and maximum "
                                    "longitude, ``south'' and ``north'': minimum and maximum latitude, "
                                    "``inner'' and ``outer'': minimum and maximum radii. "
-                                   "Names in the parameter files are as follows: "
+                                   "\n\n"
+                                   "The dimensions of the model are specified by parameters "
+                                   "of the following form: "
                                    "Chunk (minimum || maximum) (longitude || latitude): "
                                    "edges of geographical quadrangle (in degrees)"
                                    "Chunk (inner || outer) radius: Radii at bottom and top of chunk"
                                    "(Longitude || Latitude || Radius) repetitions: "
-                                   "number of cells in each coordinate direction.")
+                                   "number of cells in each coordinate direction."
+                                   "\n\n"
+                                   "When used in 2d, this geometry does not imply the use of "
+                                   "a spherical coordinate system. Indeed, "
+                                   "in 2d the geometry is simply a sector of an annulus in a Cartesian "
+                                   "coordinate system and consequently would correspond to "
+                                   "a sector of a cross section of the fluid filled space between two "
+                                   "infinite cylinders where one has made the assumption that "
+                                   "the velocity in direction of the cylinder axes is zero. "
+                                   "This is consistent with the definition of what we consider "
+                                   "the two-dimension case given in "
+                                   "Section~\\ref{sec:meaning-of-2d}.")
   }
 }
 

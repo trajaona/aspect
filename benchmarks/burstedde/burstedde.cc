@@ -1,3 +1,22 @@
+/*
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
+
+  This file is part of ASPECT.
+
+  ASPECT is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2, or (at your option)
+  any later version.
+
+  ASPECT is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with ASPECT; see the file LICENSE.  If not see
+  <http://www.gnu.org/licenses/>.
+*/
 #include <aspect/material_model/simple.h>
 #include <aspect/boundary_velocity/interface.h>
 #include <aspect/simulator_access.h>
@@ -38,7 +57,7 @@ namespace aspect
     {
       Tensor<1,3>
       burstedde_velocity (const Point<3> &pos,
-                          const double eta)
+                          const double /*eta*/)
       {
         const double x = pos[0];
         const double y = pos[1];
@@ -62,7 +81,6 @@ namespace aspect
 
         const double min_eta = 1.0;
         const double max_eta = eta;
-        const double A(min_eta*(max_eta-min_eta)/(max_eta+min_eta));
 
         return x*y*z+x*x*x*y*y*y*z-5./32.;
       }
@@ -137,7 +155,7 @@ namespace aspect
     Tensor<1,2>
     BursteddeBoundary<2>::
     boundary_velocity (const types::boundary_id ,
-                       const Point<2> &p) const
+                       const Point<2> &/*p*/) const
     {
       Assert (false, ExcNotImplemented());
       return Tensor<1,2>();
@@ -326,8 +344,8 @@ namespace aspect
     }
 
     /**
-     *gravity model for the Burstedde benchmark
-    */
+     * Gravity model for the Burstedde benchmark
+     */
 
     template <int dim>
     class BursteddeGravity : public aspect::GravityModel::Interface<dim>
@@ -426,7 +444,7 @@ namespace aspect
     std::pair<std::string,std::string>
     BursteddePostprocessor<dim>::execute (TableHandler &statistics)
     {
-      std_cxx1x::shared_ptr<Function<dim> > ref_func;
+      std::shared_ptr<Function<dim> > ref_func;
       {
         const BursteddeMaterial<dim> *
         material_model
@@ -522,4 +540,3 @@ namespace aspect
                                   "See the manual for more information.")
   }
 }
-

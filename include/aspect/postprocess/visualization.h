@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2016 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -114,6 +114,11 @@ namespace aspect
            * Initialize function.
            */
           virtual void initialize ();
+
+          /**
+           * Update any temporary information needed by the visualization postprocessor.
+           */
+          virtual void update();
 
           /**
            * Declare the parameters this class takes through input files.
@@ -279,6 +284,13 @@ namespace aspect
         execute (TableHandler &statistics);
 
         /**
+         * Update any temporary information needed by the visualization postprocessor.
+         */
+        virtual
+        void
+        update ();
+
+        /**
          * A function that is used to register visualization postprocessor
          * objects in such a way that the Manager can deal with all of them
          * without having to know them by name. This allows the files in which
@@ -385,6 +397,20 @@ namespace aspect
         double last_output_time;
 
         /**
+         * Maximum number of steps between the generation of graphical output.
+         * This parameter
+         * is read from the input file and consequently is not part of the
+         * state that needs to be saved and restored.
+         */
+        unsigned int maximum_timesteps_between_outputs;
+
+        /**
+         * Timestep at which the last graphical output was produced
+         * Used to check for the next necessary output time.
+         */
+        unsigned int last_output_timestep;
+
+        /**
          * Consecutively counted number indicating the how-manyth time we will
          * create output the next time we get to it.
          */
@@ -423,6 +449,15 @@ namespace aspect
          * the velocity finite element (usually 2).
          */
         bool interpolate_output;
+
+        /**
+         * deal.II offers the possibility to filter duplicate vertices in HDF5
+         * output files. This merges the vertices of adjacent cells and
+         * therefore saves disk space, but misrepresents discontinuous
+         * output properties. Activating this function reduces the disk space
+         * by about a factor of $2^{dim}$ for hdf5 output.
+         */
+        bool filter_output;
 
         /**
          * For free surface computations Aspect uses an Arbitrary-Lagrangian-
@@ -509,7 +544,7 @@ namespace aspect
          * A list of postprocessor objects that have been requested in the
          * parameter file.
          */
-        std::list<std_cxx11::shared_ptr<VisualizationPostprocessors::Interface<dim> > > postprocessors;
+        std::list<std::shared_ptr<VisualizationPostprocessors::Interface<dim> > > postprocessors;
 
         /**
          * A list of pairs (time, pvtu_filename) that have so far been written

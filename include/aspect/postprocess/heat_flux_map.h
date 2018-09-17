@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2016 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2017 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -30,6 +30,23 @@ namespace aspect
 {
   namespace Postprocess
   {
+    namespace internal
+    {
+      /**
+       * This function computes for each cell, for each face that is at a
+       * boundary the heat flux normal through this boundary by
+       * integrating
+       *   j =  - k * n . grad T
+       * over the boundary face.
+       * Note that for the inner boundary of the spherical shell geometry,
+       * the normal vector points *into* the core, i.e. we compute the flux
+       * *out* of the mantle, not into it. we fix this when we add the local
+       * contribution to the global flux.
+       */
+      template <int dim>
+      std::vector<std::vector<std::pair<double, double> > >
+      compute_heat_flux_through_boundary_faces (const SimulatorAccess<dim> &simulator_access);
+    }
 
     /**
      * A postprocessor that computes the point-wise heat flux density through the boundaries.

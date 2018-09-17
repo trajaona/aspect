@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2016 by the authors of the ASPECT code.
+  Copyright (C) 2016 - 2017 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -42,10 +42,10 @@ namespace aspect
       get_names () const
       {
         std::vector<std::string> solution_names;
-        solution_names.push_back("adiabatic_temperature");
-        solution_names.push_back("adiabatic_pressure");
-        solution_names.push_back("adiabatic_density");
-        solution_names.push_back("adiabatic_density_derivative");
+        solution_names.emplace_back("adiabatic_temperature");
+        solution_names.emplace_back("adiabatic_pressure");
+        solution_names.emplace_back("adiabatic_density");
+        solution_names.emplace_back("adiabatic_density_derivative");
         return solution_names;
       }
 

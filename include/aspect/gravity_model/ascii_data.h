@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -87,7 +87,7 @@ namespace aspect
         /**
          * Object containing the data profile.
          */
-        std_cxx11::shared_ptr<aspect::Utilities::AsciiDataLookup<1> > profile;
+        std::shared_ptr<aspect::Utilities::AsciiDataLookup<1> > profile;
 
         /**
          * The column index of the gravity column in the data file.

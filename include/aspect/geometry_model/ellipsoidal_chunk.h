@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2016 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -27,11 +27,6 @@
 #include <aspect/simulator_access.h>
 #include <deal.II/grid/manifold.h>
 
-/**
- * This geometry model implements an (3d) ellipsoidal chunk geometry where two of the axis have
- * the same length. The ellipsoidal chunk can be a non-coordinate parallel part of the ellipsoid.
- * @author This plugin is a joined effort of Menno Fraters, D Sarah Stamps and Wolfgang Bangerth
- */
 
 namespace aspect
 {
@@ -41,6 +36,11 @@ namespace aspect
 
     /**
      * A class that describes a geometry for an ellipsoid such as the WGS84 model of the earth.
+     *
+     * This geometry model implements a (3d) ellipsoidal chunk geometry where two of the axis have
+     * the same length. The ellipsoidal chunk can be a non-coordinate parallel part of the ellipsoid.
+     *
+     * @author This plugin is a joined effort of Menno Fraters, D. Sarah Stamps and Wolfgang Bangerth
      */
     template <int dim>
     class EllipsoidalChunk : public Interface<dim>, public SimulatorAccess<dim>
@@ -56,6 +56,11 @@ namespace aspect
              * Constructor
              */
             EllipsoidalChunkGeometry();
+
+            /**
+             * Copy constructor
+             */
+            EllipsoidalChunkGeometry(const EllipsoidalChunkGeometry &other);
 
             /**
              * An initialization function necessary to make sure that the
@@ -102,6 +107,14 @@ namespace aspect
             Point<3>
             push_forward(const Point<3> &chart_point) const;
 
+#if DEAL_II_VERSION_GTE(9,0,0)
+            /**
+             * Return a copy of this manifold.
+             */
+            virtual
+            std::unique_ptr<Manifold<dim,3> >
+            clone() const;
+#endif
 
           private:
             /**
@@ -138,8 +151,8 @@ namespace aspect
         };
 
         /**
-        * Initialize function
-        */
+         * Initialize function
+         */
         virtual
         void
         initialize ();
@@ -176,6 +189,14 @@ namespace aspect
         virtual
         double
         depth(const Point<dim> &position) const;
+
+        /**
+         * Placeholder for a function returning the height of the given
+         * position relative to the reference model surface.
+         */
+        virtual
+        double
+        height_above_reference_surface(const Point<dim> &position) const;
 
         /**
          * Returns a point in the center of the domain.
@@ -217,6 +238,31 @@ namespace aspect
         */
         virtual std::map<std::string,types::boundary_id>
         get_symbolic_boundary_names_map() const;
+
+        /*
+         * Returns what the natural coordinate system for this geometry model is,
+         * which for a Ellipsoidal chunk is Ellisoidal.
+         */
+        virtual
+        aspect::Utilities::Coordinates::CoordinateSystem natural_coordinate_system() const;
+
+        /**
+         * Takes the Cartesian points (x,z or x,y,z) and returns standardized
+         * coordinates which are most 'natural' to the geometry model. For a
+         * ellispoidal chunk this is (radius, longitude) in 2d and (radius,
+         * longitude, latitude) in 3d. Note that internally the coordinates are
+         * stored in longitude, latitude, depth.
+         */
+        virtual
+        std::array<double,dim> cartesian_to_natural_coordinates(const Point<dim> &position) const;
+
+        /**
+         * Undoes the action of cartesian_to_natural_coordinates, and turns the
+         * coordinate system which is most 'natural' to the geometry model into
+         * Cartesian coordinates.
+         */
+        virtual
+        Point<dim> natural_to_cartesian_coordinates(const std::array<double,dim> &position) const;
 
         /**
          * Declare the parameters this class takes through input files.
@@ -302,21 +348,6 @@ namespace aspect
          * Construct manifold object Pointer to an object that describes the geometry.
          */
         EllipsoidalChunkGeometry   manifold;
-
-        static void set_manifold_ids (Triangulation<dim> &triangulation)
-        {
-          for (typename Triangulation<dim>::active_cell_iterator cell =
-                 triangulation.begin_active(); cell != triangulation.end(); ++cell)
-            cell->set_all_manifold_ids (15);
-        }
-
-
-        static void clear_manifold_ids (Triangulation<dim> &triangulation)
-        {
-          for (typename Triangulation<dim>::active_cell_iterator cell =
-                 triangulation.begin_active(); cell != triangulation.end(); ++cell)
-            cell->set_all_manifold_ids (numbers::invalid_manifold_id);
-        }
 
         void
         set_boundary_ids(parallel::distributed::Triangulation<dim> &coarse_grid) const;

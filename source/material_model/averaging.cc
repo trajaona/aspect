@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2017 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,11 +14,11 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
-#include <deal.II/base/std_cxx11/array.h>
+#include <array>
 #include <aspect/material_model/averaging.h>
 #include <utility>
 #include <limits>
@@ -130,6 +130,7 @@ namespace aspect
             const double average = std::pow (prod, 1./N);
             for (unsigned int i=0; i<N; ++i)
               values_out[i] = average;
+            break;
           }
           case pick_largest:
           {

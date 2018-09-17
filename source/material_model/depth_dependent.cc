@@ -14,14 +14,15 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
 #include <aspect/material_model/depth_dependent.h>
 #include <aspect/utilities.h>
+#include <aspect/geometry_model/interface.h>
 
-#include <deal.II/base/std_cxx11/array.h>
+#include <array>
 
 #include <utility>
 #include <limits>
@@ -31,6 +32,31 @@ namespace aspect
 {
   namespace MaterialModel
   {
+    template <int dim>
+    void
+    DepthDependent<dim>::initialize()
+    {
+      base_model->initialize();
+    }
+
+
+
+    template <int dim>
+    void
+    DepthDependent<dim>::update()
+    {
+      base_model->update();
+
+      // we get time passed as seconds (always) but may want
+      // to reinterpret it in years
+      if (this->convert_output_to_years())
+        viscosity_function.set_time (this->get_time() / year_in_seconds);
+      else
+        viscosity_function.set_time (this->get_time());
+    }
+
+
+
     template <int dim>
     void
     DepthDependent<dim>::read_viscosity_file(const std::string &filename,
@@ -47,7 +73,7 @@ namespace aspect
       std::string header;
       getline(in, header);/* Discard header line */
       std::vector<double> visc_vec;
-      std_cxx11::array< std::vector<double>, 1 > depth_table;
+      std::array< std::vector<double>, 1 > depth_table;
       while (!in.eof())
         {
           double visc, depth;

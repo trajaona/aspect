@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2016 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -29,6 +29,9 @@
 
 #include <deal.II/base/parameter_handler.h>
 #include <deal.II/distributed/tria.h>
+
+#include <boost/core/demangle.hpp>
+#include <typeinfo>
 
 
 namespace aspect
@@ -244,7 +247,7 @@ namespace aspect
          * Return a list of pointers to all boundary temperature models
          * currently used in the computation, as specified in the input file.
          */
-        const std::vector<std_cxx11::shared_ptr<Interface<dim> > > &
+        const std::vector<std::shared_ptr<Interface<dim> > > &
         get_active_boundary_temperature_conditions () const;
 
         /**
@@ -252,11 +255,41 @@ namespace aspect
          * the input file (and are consequently currently active) and see if one
          * of them has the desired type specified by the template argument. If so,
          * return a pointer to it. If no boundary temperature model is active
-         * that matches the given type, return a NULL pointer.
+         * that matches the given type, return a nullptr.
          */
         template <typename BoundaryTemperatureType>
+        DEAL_II_DEPRECATED
         BoundaryTemperatureType *
         find_boundary_temperature_model () const;
+
+        /**
+         * Go through the list of all boundary temperature models that have been selected
+         * in the input file (and are consequently currently active) and return
+         * true if one of them has the desired type specified by the template
+         * argument.
+         */
+        template <typename BoundaryTemperatureType>
+        bool
+        has_matching_boundary_temperature_model () const;
+
+        /**
+         * Go through the list of all boundary temperature models that have been selected
+         * in the input file (and are consequently currently active) and see
+         * if one of them has the type specified by the template
+         * argument or can be casted to that type. If so, return a reference
+         * to it. If no boundary temperature model is active that matches the given type,
+         * throw an exception.
+         */
+        template <typename BoundaryTemperatureType>
+        const BoundaryTemperatureType &
+        get_matching_boundary_temperature_model () const;
+
+        /*
+         * Return a set of boundary indicators for which boundary
+         * temperatures are prescribed.
+         */
+        const std::set<types::boundary_id> &
+        get_fixed_temperature_boundary_indicators() const;
 
         /**
          * For the current plugin subsystem, write a connection graph of all of the
@@ -285,7 +318,7 @@ namespace aspect
          * A list of boundary temperature objects that have been requested in the
          * parameter file.
          */
-        std::vector<std_cxx11::shared_ptr<Interface<dim> > > boundary_temperature_objects;
+        std::vector<std::shared_ptr<Interface<dim> > > boundary_temperature_objects;
 
         /**
          * A list of names of boundary temperature objects that have been requested
@@ -300,6 +333,12 @@ namespace aspect
          * boundary with the values from the current plugin.
          */
         std::vector<aspect::Utilities::Operator> model_operators;
+
+        /**
+         * A set of boundary ids on which the boundary_temperature_objects
+         * will be applied.
+         */
+        std::set<types::boundary_id> fixed_temperature_boundary_indicators;
     };
 
 
@@ -310,12 +349,51 @@ namespace aspect
     BoundaryTemperatureType *
     Manager<dim>::find_boundary_temperature_model () const
     {
-      for (typename std::list<std_cxx11::shared_ptr<Interface<dim> > >::const_iterator
+      for (typename std::vector<std::shared_ptr<Interface<dim> > >::const_iterator
            p = boundary_temperature_objects.begin();
            p != boundary_temperature_objects.end(); ++p)
         if (BoundaryTemperatureType *x = dynamic_cast<BoundaryTemperatureType *> ( (*p).get()) )
           return x;
-      return NULL;
+      return nullptr;
+    }
+
+
+    template <int dim>
+    template <typename BoundaryTemperatureType>
+    inline
+    bool
+    Manager<dim>::has_matching_boundary_temperature_model () const
+    {
+      for (typename std::vector<std::shared_ptr<Interface<dim> > >::const_iterator
+           p = boundary_temperature_objects.begin();
+           p != boundary_temperature_objects.end(); ++p)
+        if (Plugins::plugin_type_matches<BoundaryTemperatureType>(*(*p)))
+          return true;
+      return false;
+    }
+
+
+    template <int dim>
+    template <typename BoundaryTemperatureType>
+    inline
+    const BoundaryTemperatureType &
+    Manager<dim>::get_matching_boundary_temperature_model () const
+    {
+      AssertThrow(has_matching_boundary_temperature_model<BoundaryTemperatureType> (),
+                  ExcMessage("You asked BoundaryTemperature:Manager::get_boundary_temperature_model() for a "
+                             "boundary temperature model of type <" + boost::core::demangle(typeid(BoundaryTemperatureType).name()) + "> "
+                             "that could not be found in the current model. Activate this "
+                             "boundary temperature model in the input file."));
+
+      typename std::vector<std::shared_ptr<Interface<dim> > >::const_iterator boundary_temperature_model;
+      for (typename std::vector<std::shared_ptr<Interface<dim> > >::const_iterator
+           p = boundary_temperature_objects.begin();
+           p != boundary_temperature_objects.end(); ++p)
+        if (Plugins::plugin_type_matches<BoundaryTemperatureType>(*(*p)))
+          return Plugins::get_plugin_as_type<BoundaryTemperatureType>(*(*p));
+
+      // We will never get here, because we had the Assert above. Just to avoid warnings.
+      return Plugins::get_plugin_as_type<BoundaryTemperatureType>(*(*boundary_temperature_model));
     }
 
 

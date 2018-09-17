@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2016 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -89,7 +89,14 @@ namespace aspect
       in.strain_rate.resize(0); // adiabat has strain=0.
       this->get_material_model().evaluate(in, out);
 
-      const double kappa = out.thermal_conductivities[0] / (out.densities[0] * out.specific_heat[0]);
+      const double kappa = ( (this->get_parameters().formulation_temperature_equation ==
+                              Parameters<dim>::Formulation::TemperatureEquation::reference_density_profile)
+                             ?
+                             out.thermal_conductivities[0] /
+                             (this->get_adiabatic_conditions().density(in.position[0]) * out.specific_heat[0])
+                             :
+                             out.thermal_conductivities[0] / (out.densities[0] * out.specific_heat[0])
+                           );
 
       // analytical solution for the thermal boundary layer from half-space cooling model
       const double surface_cooling_temperature = age_top > 0.0 ?
@@ -97,7 +104,7 @@ namespace aspect
                                                  erfc(this->get_geometry_model().depth(position) /
                                                       (2 * sqrt(kappa * age_top)))
                                                  : 0.0;
-      const double bottom_heating_temperature = age_bottom > 0.0 ?
+      const double bottom_heating_temperature = (age_bottom > 0.0 && this->get_adiabatic_conditions().is_initialized()) ?
                                                 (T_bottom - adiabatic_bottom_temperature + subadiabaticity)
                                                 * erfc((this->get_geometry_model().maximal_depth()
                                                         - this->get_geometry_model().depth(position)) /
@@ -180,7 +187,7 @@ namespace aspect
             }
           else
             AssertThrow (false,
-                         ExcMessage ("Not a valid geometry model for the initial conditions model"
+                         ExcMessage ("Not a valid geometry model for the initial temperature model"
                                      "adiabatic."));
         }
 
@@ -309,7 +316,7 @@ namespace aspect
               catch (...)
                 {
                   std::cerr << "ERROR: FunctionParser failed to parse\n"
-                            << "\t'Initial conditions.Adiabatic.Function'\n"
+                            << "\t'Initial temperature model.Adiabatic.Function'\n"
                             << "with expression\n"
                             << "\t'" << prm.get("Function expression") << "'"
                             << "More information about the cause of the parse error \n"

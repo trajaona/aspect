@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2016 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2017 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -22,6 +22,7 @@
 
 #include <aspect/mesh_refinement/minimum_refinement_function.h>
 #include <aspect/utilities.h>
+#include <aspect/geometry_model/interface.h>
 
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/fe/fe_values.h>
@@ -61,32 +62,10 @@ namespace aspect
               for ( unsigned int v = 0; v < GeometryInfo<dim>::vertices_per_cell;  ++v)
                 {
                   const Point<dim> vertex = cell->vertex(v);
-                  double minimum_refinement_level = 0;
+                  Utilities::NaturalCoordinate<dim> point =
+                    this->get_geometry_model().cartesian_to_other_coordinates(vertex, coordinate_system);
 
-                  if (coordinate_system == Utilities::Coordinates::depth)
-                    {
-                      const double depth = this->get_geometry_model().depth(vertex);
-                      Point<dim> point;
-                      point(0) = depth;
-                      minimum_refinement_level = min_refinement_level.value(point);
-                    }
-                  else if (coordinate_system == Utilities::Coordinates::spherical)
-                    {
-                      const std_cxx11::array<double,dim> spherical_coordinates =
-                        aspect::Utilities::Coordinates::cartesian_to_spherical_coordinates(vertex);
-
-                      // Conversion to evaluate the spherical coordinates in the minimum
-                      // refinement level function.
-                      Point<dim> point;
-                      for (unsigned int i = 0; i<dim; ++i)
-                        point[i] = spherical_coordinates[i];
-
-                      minimum_refinement_level = min_refinement_level.value(point);
-                    }
-                  else if (coordinate_system == Utilities::Coordinates::cartesian)
-                    {
-                      minimum_refinement_level = min_refinement_level.value(vertex);
-                    }
+                  const double minimum_refinement_level = min_refinement_level.value(Utilities::convert_array_to_point<dim>(point.get_coordinates()));
 
                   if (cell->level() <= rint(minimum_refinement_level))
                     clear_coarsen = true;

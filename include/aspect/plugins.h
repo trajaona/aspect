@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2016 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -26,7 +26,10 @@
 
 #include <deal.II/base/utilities.h>
 #include <deal.II/base/parameter_handler.h>
-#include <deal.II/base/std_cxx11/tuple.h>
+#include <tuple>
+#include <deal.II/base/exceptions.h>
+
+#include <boost/core/demangle.hpp>
 
 #include <string>
 #include <list>
@@ -40,6 +43,55 @@ namespace aspect
 {
   template <int dim> class SimulatorAccess;
 
+  namespace Plugins
+  {
+    using namespace dealii;
+
+    /**
+     * This function returns if a given plugin (e.g. a material model returned
+     * from SimulatorAccess::get_material_model() ) matches a certain plugin
+     * type (e.g. MaterialModel::Simple). This check is needed, because often
+     * it is only possible to get a reference to an Interface, not the actual
+     * plugin type, but the actual plugin type might be important. For example
+     * a radial gravity model might only be implemented for spherical geometry
+     * models, and would want to check if the current geometry is in fact a
+     * spherical shell.
+     */
+    template <typename TestType, typename PluginType>
+    inline
+    bool
+    plugin_type_matches (const PluginType &object)
+    {
+      return (dynamic_cast<const TestType *> (&object) != nullptr);
+    }
+
+    /**
+     * This function converts a reference to a type (in particular a reference
+     * to an interface class) into a reference to a different type (in
+     * particular a plugin class). This allows accessing members of the plugin
+     * that are not specified in the interface class. Note that you should
+     * first check if the plugin type is actually convertible by calling
+     * plugin_matches_type() before calling this function. If the plugin is
+     * not convertible this function throws an exception.
+     */
+    template <typename TestType, typename PluginType>
+    inline
+    TestType &
+    get_plugin_as_type (PluginType &object)
+    {
+      AssertThrow(plugin_type_matches<TestType>(object),
+                  ExcMessage("You have requested to convert a plugin of type <"
+                             + boost::core::demangle(typeid(PluginType).name())
+                             + "> into type <"
+                             + boost::core::demangle(typeid(TestType).name()) +
+                             ">, but this cast cannot be performed."));
+
+      // We can safely dereference the pointer, because we checked above that
+      // the object is actually of type TestType, and so the result
+      // is not a nullptr.
+      return *dynamic_cast<TestType *> (&object);
+    }
+  }
 
   namespace internal
   {
@@ -112,11 +164,11 @@ namespace aspect
          * - A function that can produce objects of this plugin type.
          */
         typedef
-        std_cxx11::tuple<std::string,
-                  std::string,
-                  void ( *) (ParameterHandler &),
-                  InterfaceClass *( *) ()>
-                  PluginInfo;
+        std::tuple<std::string,
+            std::string,
+            void ( *) (ParameterHandler &),
+            InterfaceClass *( *) ()>
+            PluginInfo;
 
         /**
          * A pointer to a list of all registered plugins.
@@ -275,7 +327,7 @@ namespace aspect
         for (typename std::list<PluginInfo>::const_iterator
              p = plugins->begin();
              p != plugins->end(); ++p)
-          Assert (std_cxx11::get<0>(*p) != name,
+          Assert (std::get<0>(*p) != name,
                   ExcMessage ("A plugin with name <" + name + "> has "
                               "already been registered!"));
 
@@ -302,7 +354,7 @@ namespace aspect
         for (typename std::list<PluginInfo>::const_iterator
              p = plugins->begin();
              p != plugins->end(); ++p)
-          names.insert (std_cxx11::get<0>(*p));
+          names.insert (std::get<0>(*p));
 
         // now create a pattern from all of these sorted names
         std::string pattern_of_names;
@@ -333,7 +385,7 @@ namespace aspect
         for (typename std::list<PluginInfo>::const_iterator
              p = plugins->begin();
              p != plugins->end(); ++p)
-          names_and_descriptions[std_cxx11::get<0>(*p)] = std_cxx11::get<1>(*p);;
+          names_and_descriptions[std::get<0>(*p)] = std::get<1>(*p);;
 
         // then output it all
         typename std::map<std::string,std::string>::const_iterator
@@ -376,7 +428,7 @@ namespace aspect
         for (typename std::list<PluginInfo>::const_iterator
              p = plugins->begin();
              p != plugins->end(); ++p)
-          (std_cxx11::get<2>(*p))(prm);
+          (std::get<2>(*p))(prm);
       }
 
 
@@ -409,9 +461,9 @@ namespace aspect
 
         for (typename std::list<PluginInfo>::const_iterator p = plugins->begin();
              p != plugins->end(); ++p)
-          if (std_cxx11::get<0>(*p) == name)
+          if (std::get<0>(*p) == name)
             {
-              InterfaceClass *i = std_cxx11::get<3>(*p)();
+              InterfaceClass *i = std::get<3>(*p)();
               return i;
             }
 
@@ -467,7 +519,7 @@ namespace aspect
         plugin_map;
         for (typename std::list<PluginInfo>::const_iterator p = plugins->begin();
              p != plugins->end(); ++p)
-          plugin_map[std_cxx11::get<0>(*p)] = p;
+          plugin_map[std::get<0>(*p)] = p;
 
         // now output the information sorted by the plugin names
         for (typename std::map<std::string, typename std::list<PluginInfo>::const_iterator>::const_iterator
@@ -488,7 +540,7 @@ namespace aspect
             // next create a (symbolic) node name for this plugin. because
             // each plugin corresponds to a particular class, use the mangled
             // name of the class
-            std_cxx11::unique_ptr<InterfaceClass> instance (create_plugin (p->first, ""));
+            std::unique_ptr<InterfaceClass> instance (create_plugin (p->first, ""));
             const std::string node_name = typeid(*instance).name();
 
             // then output the whole shebang describing this node
@@ -510,9 +562,9 @@ namespace aspect
             // finally see if this plugin is derived from
             // SimulatorAccess; if so, draw an arrow from SimulatorAccess
             // also to the plugin's name
-            if (dynamic_cast<const SimulatorAccess<2>*>(instance.get()) != NULL
+            if (dynamic_cast<const SimulatorAccess<2>*>(instance.get()) != nullptr
                 ||
-                dynamic_cast<const SimulatorAccess<3>*>(instance.get()) != NULL)
+                dynamic_cast<const SimulatorAccess<3>*>(instance.get()) != nullptr)
               output_stream << "SimulatorAccess"
                             << " -> "
                             << node_name

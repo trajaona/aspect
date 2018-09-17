@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2016 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -34,11 +34,32 @@
 #include <deal.II/fe/fe.h>
 #include <deal.II/fe/mapping_q.h>
 
+#if !DEAL_II_VERSION_GTE(9,1,0)
+#  include <deal.II/lac/constraint_matrix.h>
+#else
+#  include <deal.II/lac/affine_constraints.h>
+#endif
 
+namespace WorldBuilder
+{
+  class World;
+}
 
 namespace aspect
 {
   using namespace dealii;
+
+#if DEAL_II_VERSION_GTE(9,1,0)
+  /**
+   * The ConstraintMatrix class was deprecated in deal.II 9.1 in favor
+   * of AffineConstraints. To make the name available for ASPECT
+   * nonetheless, use a `using` declaration. This injects the name
+   * into the `aspect` namespace, where it is visible before the
+   * deprecated name in the `dealii` namespace, thereby suppressing
+   * the deprecation message.
+   */
+  using ConstraintMatrix = class dealii::AffineConstraints<double>;
+#endif
 
   // forward declarations:
   template <int dim> class Simulator;
@@ -67,8 +88,14 @@ namespace aspect
     template <int dim> class Interface;
   }
 
+  namespace BoundaryHeatFlux
+  {
+    template <int dim> class Interface;
+  }
+
   namespace BoundaryComposition
   {
+    template <int dim> class Manager;
     template <int dim> class Interface;
   }
 
@@ -79,6 +106,7 @@ namespace aspect
 
   namespace BoundaryVelocity
   {
+    template <int dim> class Manager;
     template <int dim> class Interface;
   }
 
@@ -93,12 +121,25 @@ namespace aspect
     template <int dim> class Interface;
   }
 
+  namespace MeshRefinement
+  {
+    template <int dim> class Manager;
+  }
+
   namespace AdiabaticConditions
   {
     template <int dim> class Interface;
   }
 
+  namespace Postprocess
+  {
+    template <int dim> class Manager;
+  }
+
   template <int dim> class MeltHandler;
+  template <int dim> class FreeSurfaceHandler;
+
+  template <int dim> class NewtonHandler;
 
   /**
    * SimulatorAccess is a base class for different plugins like postprocessors.
@@ -382,8 +423,9 @@ namespace aspect
       /**
        * Return a reference to the vector that has the current solution of the
        * entire system, i.e. the velocity and pressure variables as well as
-       * the temperature.  This vector is associated with the DoFHandler
-       * object returned by get_dof_handler().
+       * the temperature and compositional fields.
+       * This vector is associated with the DoFHandler object returned by
+       * get_dof_handler().
        *
        * @note In general the vector is a distributed vector; however, it
        * contains ghost elements for all locally relevant degrees of freedom.
@@ -412,6 +454,16 @@ namespace aspect
        */
       const LinearAlgebra::BlockVector &
       get_old_old_solution () const;
+
+      /**
+       * Return a reference to the vector that has the reactions computed by the
+       * operator splitting scheme in the current time step.
+       *
+       * @note In general the vector is a distributed vector; however, it
+       * contains ghost elements for all locally relevant degrees of freedom.
+       */
+      const LinearAlgebra::BlockVector &
+      get_reaction_vector () const;
 
       /**
        * Return a reference to the vector that has the mesh velocity for
@@ -478,13 +530,6 @@ namespace aspect
                                            MaterialModel::MaterialModelInputs<dim> &material_model_inputs) const;
 
       /**
-       * This function simply calls Simulator<dim>::create_additional_material_model_outputs()
-       * with the given arguments.
-       */
-      void
-      create_additional_material_model_outputs (MaterialModel::MaterialModelOutputs<dim> &) const;
-
-      /**
        * Return a pointer to the gravity model description.
        */
       const GravityModel::Interface<dim> &
@@ -526,12 +571,13 @@ namespace aspect
        *
        * @deprecated: Use get_boundary_temperature_manager() instead.
        */
+      DEAL_II_DEPRECATED
       const BoundaryTemperature::Interface<dim> &
-      get_boundary_temperature () const DEAL_II_DEPRECATED;
+      get_boundary_temperature () const;
 
       /**
-       * Return an reference to the manager of the initial temperature models.
-       * This can then i.e. be used to get the names of the initial temperature
+       * Return an reference to the manager of the boundary temperature models.
+       * This can then, for example, be used to get the names of the initial temperature
        * models used in a computation, or to compute the initial temperature
        * for a given position.
        */
@@ -539,27 +585,45 @@ namespace aspect
       get_boundary_temperature_manager () const;
 
       /**
+       * Return a reference to the object that describes heat flux
+       * boundary conditions.
+       */
+      const BoundaryHeatFlux::Interface<dim> &
+      get_boundary_heat_flux () const;
+
+      /**
        * Return whether the current model has a boundary composition object
        * set. This is useful because a simulation does not actually have to
        * declare any boundary composition model, for example if all
        * boundaries are reflecting. In such cases, there is no
-       * boundary composition model that can provide, for example,
-       * a minimal and maximal temperature on the boundary.
+       * boundary composition model.
        */
       bool has_boundary_composition () const;
 
       /**
        * Return a reference to the object that describes the composition
        * boundary values.
+       *
+       * @deprecated: Use get_boundary_composition_manager() instead.
        */
+      DEAL_II_DEPRECATED
       const BoundaryComposition::Interface<dim> &
       get_boundary_composition () const;
+
+      /**
+       * Return an reference to the manager of the boundary composition models.
+       * This can then, for example, be used to get the names of the boundary composition
+       * models used in a computation, or to compute the boundary composition
+       * for a given position.
+       */
+      const BoundaryComposition::Manager<dim> &
+      get_boundary_composition_manager () const;
 
       /**
        * Return a reference to the object that describes traction
        * boundary conditions.
        */
-      const std::map<types::boundary_id,std_cxx11::shared_ptr<BoundaryTraction::Interface<dim> > > &
+      const std::map<types::boundary_id,std::shared_ptr<BoundaryTraction::Interface<dim> > > &
       get_boundary_traction () const;
 
       /**
@@ -568,12 +632,13 @@ namespace aspect
        *
        * @deprecated Use <code> get_initial_temperature_manager </code> instead.
        */
+      DEAL_II_DEPRECATED
       const InitialTemperature::Interface<dim> &
-      get_initial_temperature () const DEAL_II_DEPRECATED;
+      get_initial_temperature () const;
 
       /**
        * Return a reference to the manager of the initial temperature models.
-       * This can then i.e. be used to get the names of the initial temperature
+       * This can then, for example, be used to get the names of the initial temperature
        * models used in a computation, or to compute the initial temperature
        * for a given position.
        */
@@ -584,12 +649,13 @@ namespace aspect
        * Return a pointer to the object that describes the composition initial
        * values.
        */
+      DEAL_II_DEPRECATED
       const InitialComposition::Interface<dim> &
-      get_initial_composition () const DEAL_II_DEPRECATED;
+      get_initial_composition () const;
 
       /**
        * Return a pointer to the manager of the initial composition model.
-       * This can then i.e. be used to get the names of the initial composition
+       * This can then, for example, be used to get the names of the initial composition
        * models used in a computation.
        */
       const InitialComposition::Manager<dim> &
@@ -601,6 +667,13 @@ namespace aspect
        */
       const std::set<types::boundary_id> &
       get_fixed_temperature_boundary_indicators () const;
+
+      /**
+       * Return a set of boundary indicators that describes which of the
+       * boundaries have a fixed heat flux.
+       */
+      const std::set<types::boundary_id> &
+      get_fixed_heat_flux_boundary_indicators () const;
 
       /**
        * Return a set of boundary indicators that describes which of the
@@ -618,23 +691,68 @@ namespace aspect
 
       /**
        * Return the map of prescribed_boundary_velocity
+       *
+       * @deprecated: Use get_boundary_velocity_manager() instead.
        */
-      const std::map<types::boundary_id,std_cxx11::shared_ptr<BoundaryVelocity::Interface<dim> > >
+      DEAL_II_DEPRECATED
+      const std::map<types::boundary_id,std::shared_ptr<BoundaryVelocity::Interface<dim> > >
       get_prescribed_boundary_velocity () const;
 
       /**
+       * Return an reference to the manager of the boundary velocity models.
+       * This can then, for example, be used to get the names of the boundary velocity
+       * models used in a computation, or to compute the boundary velocity
+       * for a given position.
+       */
+      const BoundaryVelocity::Manager<dim> &
+      get_boundary_velocity_manager () const;
+
+      /**
        * Return a pointer to the manager of the heating model.
-       * This can then i.e. be used to get the names of the heating models
+       * This can then, for example, be used to get the names of the heating models
        * used in a computation.
        */
       const HeatingModel::Manager<dim> &
       get_heating_model_manager () const;
 
       /**
-       * Return a pointer to the melt handler.
+       * Return a reference to the manager of the mesh refinement strategies.
+       * this can then, for example, be used to get the names of the active refinement
+       * strategies for such purposes as confirming that a particular one has
+       * been included.
+       */
+      const MeshRefinement::Manager<dim> &
+      get_mesh_refinement_manager () const;
+
+      /**
+       * Return a reference to the melt handler.
        */
       const MeltHandler<dim> &
       get_melt_handler () const;
+
+      /**
+       * Return a reference to the Newton handler that controls the Newton
+       * iteration to resolve nonlinearities.
+       */
+      const NewtonHandler<dim> &
+      get_newton_handler () const;
+
+      /**
+       * Return a reference to the world builder that controls the setup of
+       * initial conditions.
+       *
+       * This call will only succeed if ASPECT was configured to use
+       * the WorldBuilder.
+       */
+      const WorldBuilder::World &
+      get_world_builder () const;
+
+      /**
+       * Return a reference to the free surface handler. This function will
+       * throw an exception if no free surface is activated.
+       */
+      const FreeSurfaceHandler<dim> &
+      get_free_surface_handler () const;
 
       /**
        * Return a reference to the lateral averaging object owned
@@ -656,6 +774,28 @@ namespace aspect
        * a pointer to a Simulator class object.
        */
       bool simulator_is_initialized () const;
+
+      /**
+       * Return the value used for rescaling the pressure in the linear
+       * solver.
+       */
+      double
+      get_pressure_scaling () const;
+
+      /**
+       * Return whether we need to apply a compatibility modification
+       * to the pressure right hand side. See documentation of
+       * Simulator<dim>::do_pressure_rhs_compatibility_modification for more
+       * information.
+       */
+      bool
+      pressure_rhs_needs_compatibility_modification() const;
+
+      /**
+       * Return whether the model uses a prescribed Stokes solution.
+       */
+      bool
+      model_has_prescribed_stokes_solution () const;
 
       /**
        * A convenience function that copies the values of the compositional
@@ -690,11 +830,21 @@ namespace aspect
        * no postprocessor of this type has been selected in the input
        * file (or, has been required by another postprocessor using the
        * Postprocess::Interface::required_other_postprocessors()
-       * mechanism), then the function returns a NULL pointer.
+       * mechanism), then the function returns a nullptr.
+       *
+       * @deprecated Use get_postprocess_manager().has_matching_postprocessor()
+       * and get_postprocess_manager().get_matching_postprocessor() instead.
        */
       template <typename PostprocessorType>
+      DEAL_II_DEPRECATED
       PostprocessorType *
       find_postprocessor () const;
+
+      /**
+       * Return a reference to the melt handler.
+       */
+      const Postprocess::Manager<dim> &
+      get_postprocess_manager () const;
 
       /** @} */
 
@@ -711,7 +861,10 @@ namespace aspect
   PostprocessorType *
   SimulatorAccess<dim>::find_postprocessor () const
   {
-    return simulator->postprocess_manager.template find_postprocessor<PostprocessorType>();
+    if (get_postprocess_manager().template has_matching_postprocessor<PostprocessorType>())
+      return &get_postprocess_manager().template get_matching_postprocessor<PostprocessorType>();
+
+    return nullptr;
   }
 }
 

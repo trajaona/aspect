@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -169,6 +169,13 @@ namespace aspect
                                    "  \\rho(p,T) = \\rho_0"
                                    "              \\left(1-\\alpha (T-T_a)\\right) "
                                    "              \\exp{\\beta (P-P_0))}"
-                                   "\\end{align}")
+                                   "\\end{align}"
+                                   "This formulation for the density assumes that the compressibility "
+                                   "provided by the user is the adiabatic compressibility ($\\beta_S$). "
+                                   "The thermal expansivity and isentropic compressibility implied by "
+                                   "the pressure and temperature dependence are equal to the "
+                                   "user-defined constant values only along the reference isentrope, and "
+                                   "there is also an implicit pressure dependence to the heat capacity "
+                                   "$C_p$ via Maxwell's relations.")
   }
 }

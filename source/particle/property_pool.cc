@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2016 by the authors of the ASPECT code.
+  Copyright (C) 2016 - 2017 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -25,7 +25,7 @@ namespace aspect
 {
   namespace Particle
   {
-    const PropertyPool::Handle PropertyPool::invalid_handle = NULL;
+    const PropertyPool::Handle PropertyPool::invalid_handle = nullptr;
 
 
     PropertyPool::PropertyPool (const unsigned int n_properties_per_slot)
@@ -38,7 +38,10 @@ namespace aspect
     PropertyPool::Handle
     PropertyPool::allocate_properties_array ()
     {
-      return new double[n_properties];
+      if (n_properties > 0)
+        return new double[n_properties];
+
+      return invalid_handle;
     }
 
 
@@ -62,6 +65,12 @@ namespace aspect
     PropertyPool::reserve(const std::size_t size)
     {
       (void)size;
+    }
+
+    unsigned int
+    PropertyPool::n_properties_per_slot() const
+    {
+      return n_properties;
     }
   }
 }

@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2016 - 2017 by the authors of the ASPECT code.
+  Copyright (C) 2016 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -233,11 +233,13 @@ namespace aspect
     void
     AsciiReferenceProfile<dim>::create_additional_named_outputs (MaterialModel::MaterialModelOutputs<dim> &out) const
     {
-      if (out.template get_additional_output<SeismicAdditionalOutputs<dim> >() == NULL)
+      if (out.template get_additional_output<SeismicAdditionalOutputs<dim> >() == nullptr
+          && seismic_vp_index != numbers::invalid_unsigned_int
+          && seismic_vs_index != numbers::invalid_unsigned_int)
         {
           const unsigned int n_points = out.viscosities.size();
           out.additional_outputs.push_back(
-            std_cxx11::shared_ptr<MaterialModel::AdditionalMaterialOutputs<dim> >
+            std::shared_ptr<MaterialModel::AdditionalMaterialOutputs<dim> >
             (new MaterialModel::SeismicAdditionalOutputs<dim> (n_points)));
         }
     }
@@ -257,9 +259,9 @@ namespace aspect
                                    "\n"
                                    "Note the required format of the "
                                    "input data: The first lines may contain any number of comments "
-                                   "if they begin with '#', but one of these lines needs to "
+                                   "if they begin with `#', but one of these lines needs to "
                                    "contain the number of points in the reference state as "
-                                   "for example '# POINTS: 3'. "
+                                   "for example `# POINTS: 3'. "
                                    "Following the comment lines there has to be a single line "
                                    "containing the names of all data columns, separated by arbitrarily "
                                    "many spaces. Column names are not allowed to contain spaces. "
@@ -277,7 +279,7 @@ namespace aspect
                                    "\n"
                                    "The viscosity $\\eta$ is computed as "
                                    "\\begin{equation}"
-                                   "\\eta(z,T) = \\eta_r(z) \\eta_0 \\exp\\left(-A \\frac{T - T_\\text{adi}}{T_\\text{adi}}\\right),"
+                                   "\\eta(z,T) = \\eta_r(z) \\eta_0 \\exp\\left(-A \\frac{T - T_{\\text{adi}}}{T_{\\text{adi}}}\\right),"
                                    "\\end{equation}"
                                    "where $\\eta_r(z)$ is the depth-dependence, which is a "
                                    "piecewise constant function computed according to the "

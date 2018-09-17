@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2016 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -47,7 +47,8 @@ namespace aspect
      * thought of as velocity and pressure's equivalent of the initial
      * conditions plugin.
      *
-     * Note: Only used if solver type  is "Advection only".
+     * Note: This can only be used if the nonlinear solver scheme is
+     * `single Advection, no Stokes'.
      *
      * @ingroup PrescribedStokesSolution
      */

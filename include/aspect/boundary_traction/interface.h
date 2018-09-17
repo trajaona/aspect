@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2016 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -85,10 +85,11 @@ namespace aspect
          * @deprecated Use boundary_traction(const types::boundary_id boundary_indicator,
          * const Point<dim> &position, const Tensor<1,dim> &normal_vector) const instead.
          */
+        DEAL_II_DEPRECATED
         virtual
         Tensor<1,dim>
         traction (const Point<dim> &position,
-                  const Tensor<1,dim> &normal_vector) const DEAL_II_DEPRECATED;
+                  const Tensor<1,dim> &normal_vector) const;
 
         /**
          * Return the boundary traction as a function of position. The

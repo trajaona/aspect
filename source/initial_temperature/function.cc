@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -22,7 +22,7 @@
 #include <aspect/initial_temperature/function.h>
 #include <aspect/utilities.h>
 #include <aspect/global.h>
-#include <deal.II/base/signaling_nan.h>
+#include <aspect/geometry_model/interface.h>
 
 #include <iostream>
 
@@ -41,33 +41,10 @@ namespace aspect
     Function<dim>::
     initial_temperature (const Point<dim> &position) const
     {
-      if (coordinate_system == Utilities::Coordinates::cartesian)
-        {
-          return function.value(position);
-        }
-      else if (coordinate_system == Utilities::Coordinates::spherical)
-        {
-          const std_cxx11::array<double,dim> spherical_coordinates =
-            Utilities::Coordinates::cartesian_to_spherical_coordinates(position);
-          Point<dim> point;
+      Utilities::NaturalCoordinate<dim> point =
+        this->get_geometry_model().cartesian_to_other_coordinates(position, coordinate_system);
 
-          for (unsigned int i = 0; i<dim; ++i)
-            point[i] = spherical_coordinates[i];
-
-          return function.value(point);
-        }
-      else if (coordinate_system == Utilities::Coordinates::depth)
-        {
-          const double depth = this->get_geometry_model().depth(position);
-          Point<dim> point;
-          point(0) = depth;
-          return function.value(point);
-        }
-      else
-        {
-          AssertThrow(false, ExcNotImplemented());
-          return numbers::signaling_nan<double>();
-        }
+      return function.value(Utilities::convert_array_to_point<dim>(point.get_coordinates()));
     }
 
     template <int dim>
@@ -122,7 +99,7 @@ namespace aspect
         catch (...)
           {
             std::cerr << "ERROR: FunctionParser failed to parse\n"
-                      << "\t'Initial conditions.Function'\n"
+                      << "\t'Initial temperature model.Function'\n"
                       << "with expression\n"
                       << "\t'" << prm.get("Function expression") << "'"
                       << "More information about the cause of the parse error \n"

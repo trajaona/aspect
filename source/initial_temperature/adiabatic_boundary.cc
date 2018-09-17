@@ -1,20 +1,21 @@
 /*
-   Copyright (C) 2016 by the authors of the ASPECT code.
+  Copyright (C) 2016 - 2018 by the authors of the ASPECT code.
 
-   This file is part of ASPECT.
-   ASPECT is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2, or (at your option)
-   any later version.
+  This file is part of ASPECT.
 
-   ASPECT is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+  ASPECT is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2, or (at your option)
+  any later version.
 
-   You should have received a copy of the GNU General Public License
-   along with ASPECT; see the file doc/COPYING.  If not see
-   <http://www.gnu.org/licenses/>.
+  ASPECT is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with ASPECT; see the file LICENSE.  If not see
+  <http://www.gnu.org/licenses/>.
 */
 
 
@@ -71,7 +72,7 @@ namespace aspect
     double
     AdiabaticBoundary<dim>::initial_temperature (const Point<dim> &position) const
     {
-      std_cxx11::array<double,dim> wcoord      = Utilities::Coordinates::WGS84_coordinates(position);
+      std::array<double,dim> wcoord      = Utilities::Coordinates::WGS84_coordinates(position);
       const double depth                       = wcoord[0] - position.norm();
       const double isotherm_depth              = get_isotherm_depth(wcoord[2], wcoord[1]);
       if (depth > isotherm_depth)

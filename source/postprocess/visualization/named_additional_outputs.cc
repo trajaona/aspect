@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2017 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -62,6 +62,14 @@ namespace aspect
                   property_names.push_back(names[i]);
               }
           }
+
+        AssertThrow(out.additional_outputs.size() > 0,
+                    ExcMessage("You activated the postprocessor <named additional outputs>, but there are no additional outputs "
+                               "provided by the material model. Either remove the postprocessor, or check why no output is provided."));
+        AssertThrow(property_names.size() > 0,
+                    ExcMessage("You activated the postprocessor <named additional outputs>, but none of the additional outputs "
+                               "provided by the material model are named outputs. Either remove the postprocessor, or check why no "
+                               "named output is provided."));
 
         for (unsigned int i=0; i<property_names.size(); ++i)
           std::replace(property_names[i].begin(),property_names[i].end(),' ', '_');
@@ -128,7 +136,7 @@ namespace aspect
             if (result)
               {
                 std::vector<double> outputs(n_quadrature_points);
-                for (unsigned int i=0; i<get_names().size(); ++i)
+                for (unsigned int i=0; i<result->get_names().size(); ++i)
                   {
                     outputs = result->get_nth_output(i);
 

@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2015 - 2017 by the authors of the ASPECT code.
+ Copyright (C) 2015 - 2018 by the authors of the ASPECT code.
 
  This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with ASPECT; see the file doc/COPYING.  If not see
+ along with ASPECT; see the file LICENSE.  If not see
  <http://www.gnu.org/licenses/>.
  */
 
@@ -82,7 +82,7 @@ namespace aspect
     std::pair<std::vector<double>,std::vector<double> >
     Geoid<dim>::density_contribution (const double &outer_radius) const
     {
-      const unsigned int quadrature_degree = this->introspection().polynomial_degree.velocities;
+      const unsigned int quadrature_degree = this->introspection().polynomial_degree.temperature;
       // need to evaluate density contribution of each volume quadrature point
       const QGauss<dim> quadrature_formula(quadrature_degree);
 
@@ -121,7 +121,7 @@ namespace aspect
                   {
                     fe_values.reinit (cell);
                     // Set use_strain_rates to false since we don't need viscosity
-                    in.reinit(fe_values, &cell, this->introspection(), this->get_solution(), false);
+                    in.reinit(fe_values, cell, this->introspection(), this->get_solution(), false);
 
                     this->get_material_model().evaluate(in, out);
 
@@ -130,7 +130,7 @@ namespace aspect
                     for (unsigned int q=0; q<quadrature_formula.size(); ++q)
                       {
                         // convert coordinates from [x,y,z] to [r, phi, theta]
-                        const std_cxx11::array<double,dim> scoord = aspect::Utilities::Coordinates::cartesian_to_spherical_coordinates(in.position[q]);
+                        const std::array<double,dim> scoord = aspect::Utilities::Coordinates::cartesian_to_spherical_coordinates(in.position[q]);
 
                         // normalization after Dahlen and Tromp, 1986, Appendix B.6
                         const std::pair<double,double> sph_harm_vals = aspect::Utilities::real_spherical_harmonic(ideg,iord,scoord[2],scoord[1]);
@@ -161,24 +161,21 @@ namespace aspect
                                                 const double &inner_radius) const
     {
       // Get a pointer to the dynamic topography postprocessor.
-      Postprocess::DynamicTopography<dim> *dynamic_topography =
-        this->template find_postprocessor<Postprocess::DynamicTopography<dim> >();
-      AssertThrow(dynamic_topography != NULL,
-                  ExcMessage("Could not find the DynamicTopography postprocessor") );
+      const Postprocess::DynamicTopography<dim> &dynamic_topography =
+        this->get_postprocess_manager().template get_matching_postprocessor<Postprocess::DynamicTopography<dim> >();
 
       // Get the already-computed dynamic topography solution.
-      const LinearAlgebra::BlockVector topo_vector = dynamic_topography->topography_vector();
+      const LinearAlgebra::BlockVector topo_vector = dynamic_topography.topography_vector();
 
       // Get a pointer to the boundary densities postprocessor.
-      Postprocess::BoundaryDensities<dim> *boundary_densities =
-        this->template find_postprocessor<Postprocess::BoundaryDensities<dim> >();
-      AssertThrow(boundary_densities != NULL,
-                  ExcMessage("Could not find the BoundaryDensities postprocessor") );
-      const double top_layer_average_density = boundary_densities->density_at_top();
-      const double bottom_layer_average_density = boundary_densities->density_at_bottom();
+      const Postprocess::BoundaryDensities<dim> &boundary_densities =
+        this->get_postprocess_manager().template get_matching_postprocessor<Postprocess::BoundaryDensities<dim> >();
+
+      const double top_layer_average_density = boundary_densities.density_at_top();
+      const double bottom_layer_average_density = boundary_densities.density_at_bottom();
 
 
-      const unsigned int quadrature_degree = this->introspection().polynomial_degree.velocities;
+      const unsigned int quadrature_degree = this->introspection().polynomial_degree.temperature;
       const QGauss<dim-1> quadrature_formula_face(quadrature_degree); // need to grab the infinitesimal area of each quadrature points on every boundary face here
 
       FEFaceValues<dim> fe_face_values (this->get_mapping(),
@@ -275,7 +272,7 @@ namespace aspect
       std::vector<std::vector<double> > CMB_topo_spherical_function; // store theta, phi, spherical infinitesimal, and CMB dynamic topography
       for (unsigned int i=0; i<surface_stored_values.size(); ++i)
         {
-          const std_cxx11::array<double,dim> scoord = aspect::Utilities::Coordinates::cartesian_to_spherical_coordinates(surface_stored_values.at(i).first);
+          const std::array<double,dim> scoord = aspect::Utilities::Coordinates::cartesian_to_spherical_coordinates(surface_stored_values.at(i).first);
           const double theta = scoord[2];
           const double phi = scoord[1];
           // calculate spherical infinitesimal sin(theta)*d_theta*d_phi by infinitesimal_area/radius^2
@@ -290,7 +287,7 @@ namespace aspect
         }
       for (unsigned int i=0; i<CMB_stored_values.size(); ++i)
         {
-          const std_cxx11::array<double,dim> scoord = aspect::Utilities::Coordinates::cartesian_to_spherical_coordinates(CMB_stored_values.at(i).first);
+          const std::array<double,dim> scoord = aspect::Utilities::Coordinates::cartesian_to_spherical_coordinates(CMB_stored_values.at(i).first);
           const double theta = scoord[2];
           const double phi = scoord[1];
           // calculate spherical infinitesimal sin(theta)*d_theta*d_phi by infinitesimal_area/radius^2
@@ -435,10 +432,10 @@ namespace aspect
       std::vector<std::pair<double,double> > surface_cell_spherical_coordinates;
       for (unsigned int i=0; i<surface_cell_locations.size(); ++i)
         {
-          const std_cxx11::array<double,dim> scoord = aspect::Utilities::Coordinates::cartesian_to_spherical_coordinates(surface_cell_locations.at(i));
+          const std::array<double,dim> scoord = aspect::Utilities::Coordinates::cartesian_to_spherical_coordinates(surface_cell_locations.at(i));
           const double phi = scoord[1];
           const double theta = scoord[2];
-          surface_cell_spherical_coordinates.push_back(std::make_pair(theta,phi));
+          surface_cell_spherical_coordinates.emplace_back(theta,phi);
         }
 
       // Compute the grid geoid anomaly based on spherical harmonics
@@ -662,7 +659,7 @@ namespace aspect
                      :
                      surface_cell_spherical_coordinates.at(i).second*(180./numbers::PI) - 360.);
 
-              stored_values_lon_lat.push_back(std::make_pair(std::make_pair(lon,lat),geoid_anomaly.at(i)));
+              stored_values_lon_lat.emplace_back(std::make_pair(lon,lat),geoid_anomaly.at(i));
             }
           // Write the solution to the stream output
           for (unsigned int i=0; i<stored_values_lon_lat.size(); ++i)
@@ -751,8 +748,8 @@ namespace aspect
     Geoid<dim>::required_other_postprocessors() const
     {
       std::list<std::string> deps;
-      deps.push_back("dynamic topography");
-      deps.push_back("boundary densities");
+      deps.emplace_back("dynamic topography");
+      deps.emplace_back("boundary densities");
       return deps;
     }
 
@@ -760,7 +757,7 @@ namespace aspect
     double
     Geoid<dim>::evaluate (const Point<dim> &p) const
     {
-      const std_cxx11::array<double,dim> scoord = aspect::Utilities::Coordinates::cartesian_to_spherical_coordinates(p);
+      const std::array<double,dim> scoord = aspect::Utilities::Coordinates::cartesian_to_spherical_coordinates(p);
       const double theta = scoord[2];
       const double phi = scoord[1];
       double value = 0.;
@@ -801,7 +798,7 @@ namespace aspect
           prm.declare_entry("Density above","0",
                             Patterns::Double (0),
                             "The density value above the surface boundary.");
-          prm.declare_entry("Density below","8000",
+          prm.declare_entry("Density below","9900",
                             Patterns::Double (0),
                             "The density value below the CMB boundary.");
           prm.declare_entry("Also output the spherical harmonic coefficients of geoid anomaly", "false",

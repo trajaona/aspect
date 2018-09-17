@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2017 by the authors of the ASPECT code.
+  Copyright (C) 2017 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -58,7 +58,7 @@ namespace aspect
         MaterialModel::MaterialModelOutputs<dim> out(n_quadrature_points,
                                                      this->n_compositional_fields());
 
-        std_cxx11::shared_ptr<MaterialModel::AdditionalMaterialOutputs<dim> > mmd(new MaterialModel::MaterialModelDerivatives<dim> (n_quadrature_points));
+        std::shared_ptr<MaterialModel::AdditionalMaterialOutputs<dim> > mmd(new MaterialModel::MaterialModelDerivatives<dim> (n_quadrature_points));
         out.additional_outputs.push_back(mmd);
 
         this->get_material_model().evaluate(in, out);
@@ -70,7 +70,7 @@ namespace aspect
             computed_quantities[q](0) = Utilities::compute_spd_factor<dim>(out.viscosities[q],
                                                                            in.strain_rate[q],
                                                                            derivatives->viscosity_derivative_wrt_strain_rate[q],
-                                                                           0.9);
+                                                                           this->get_newton_handler().parameters.SPD_safety_factor);
           }
       }
     }

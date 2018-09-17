@@ -14,7 +14,7 @@
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with ASPECT; see the file doc/COPYING.  If not see
+ along with ASPECT; see the file LICENSE.  If not see
  <http://www.gnu.org/licenses/>.
  */
 
@@ -35,11 +35,11 @@ namespace aspect
 
       template <int dim>
       std::vector<std::vector<double> >
-      Interface<dim>::properties_at_points(const std::multimap<types::LevelInd, Particle<dim> > &particles,
+      Interface<dim>::properties_at_points(const ParticleHandler<dim> &particle_handler,
                                            const std::vector<Point<dim> > &positions,
                                            const typename parallel::distributed::Triangulation<dim>::active_cell_iterator &cell) const
       {
-        return properties_at_points(particles,positions,ComponentMask(), cell);
+        return properties_at_points(particle_handler,positions,ComponentMask(), cell);
       }
 
 
@@ -63,7 +63,7 @@ namespace aspect
 
       namespace
       {
-        std_cxx1x::tuple
+        std::tuple
         <void *,
         void *,
         aspect::internal::Plugins::PluginList<Interface<2> >,
@@ -79,10 +79,10 @@ namespace aspect
                                       void (*declare_parameters_function) (ParameterHandler &),
                                       Interface<dim> *(*factory_function) ())
       {
-        std_cxx1x::get<dim>(registered_plugins).register_plugin (name,
-                                                                 description,
-                                                                 declare_parameters_function,
-                                                                 factory_function);
+        std::get<dim>(registered_plugins).register_plugin (name,
+                                                           description,
+                                                           declare_parameters_function,
+                                                           factory_function);
       }
 
 
@@ -101,8 +101,8 @@ namespace aspect
         }
         prm.leave_subsection ();
 
-        return std_cxx1x::get<dim>(registered_plugins).create_plugin (name,
-                                                                      "Particle::Interpolator name");
+        return std::get<dim>(registered_plugins).create_plugin (name,
+                                                                "Particle::Interpolator name");
       }
 
       template <int dim>
@@ -115,19 +115,19 @@ namespace aspect
           prm.enter_subsection ("Particles");
           {
             const std::string pattern_of_names
-              = std_cxx11::get<dim>(registered_plugins).get_pattern_of_names ();
+              = std::get<dim>(registered_plugins).get_pattern_of_names ();
 
             prm.declare_entry ("Interpolation scheme", "cell average",
                                Patterns::Selection (pattern_of_names),
                                "Select one of the following models:\n\n"
                                +
-                               std_cxx11::get<dim>(registered_plugins).get_description_string());
+                               std::get<dim>(registered_plugins).get_description_string());
           }
           prm.leave_subsection ();
         }
         prm.leave_subsection ();
 
-        std_cxx11::get<dim>(registered_plugins).declare_parameters (prm);
+        std::get<dim>(registered_plugins).declare_parameters (prm);
       }
 
 
@@ -136,8 +136,8 @@ namespace aspect
       void
       write_plugin_graph (std::ostream &out)
       {
-        std_cxx11::get<dim>(registered_plugins).write_plugin_graph ("Particle interpolator interface",
-                                                                    out);
+        std::get<dim>(registered_plugins).write_plugin_graph ("Particle interpolator interface",
+                                                              out);
       }
     }
   }

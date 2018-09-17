@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -30,38 +30,6 @@ namespace aspect
 {
   namespace MaterialModel
   {
-    template <int dim>
-    const std::vector<double>
-    Multicomponent<dim>::
-    compute_volume_fractions( const std::vector<double> &compositional_fields) const
-    {
-      std::vector<double> volume_fractions( compositional_fields.size()+1);
-
-      // clip the compositional fields so they are between zero and one
-      std::vector<double> x_comp = compositional_fields;
-      for ( unsigned int i=0; i < x_comp.size(); ++i)
-        x_comp[i] = std::min(std::max(x_comp[i], 0.0), 1.0);
-
-      // sum the compositional fields for normalization purposes
-      double sum_composition = 0.0;
-      for ( unsigned int i=0; i < x_comp.size(); ++i)
-        sum_composition += x_comp[i];
-
-      if (sum_composition >= 1.0)
-        {
-          volume_fractions[0] = 0.0;  // background mantle
-          for ( unsigned int i=1; i <= x_comp.size(); ++i)
-            volume_fractions[i] = x_comp[i-1]/sum_composition;
-        }
-      else
-        {
-          volume_fractions[0] = 1.0 - sum_composition; // background mantle
-          for ( unsigned int i=1; i <= x_comp.size(); ++i)
-            volume_fractions[i] = x_comp[i-1];
-        }
-      return volume_fractions;
-    }
-
     template <int dim>
     double
     Multicomponent<dim>::
@@ -192,30 +160,30 @@ namespace aspect
                              Patterns::Double (0),
                              "The reference temperature $T_0$. Units: $K$.");
           prm.declare_entry ("Densities", "3300.",
-                             Patterns::List(Patterns::Double(0)),
+                             Patterns::Anything(),
                              "List of densities for background mantle and compositional fields,"
                              "for a total of N+1 values, where N is the number of compositional fields."
                              "If only one value is given, then all use the same value.  Units: $kg / m^3$");
           prm.declare_entry ("Viscosities", "1.e21",
-                             Patterns::List(Patterns::Double(0)),
+                             Patterns::Anything(),
                              "List of viscosities for background mantle and compositional fields,"
                              "for a total of N+1 values, where N is the number of compositional fields."
-                             "If only one value is given, then all use the same value. Units: $Pa s$");
+                             "If only one value is given, then all use the same value. Units: $Pa \\, s$");
           prm.declare_entry ("Thermal expansivities", "4.e-5",
-                             Patterns::List(Patterns::Double(0)),
+                             Patterns::Anything(),
                              "List of thermal expansivities for background mantle and compositional fields,"
                              "for a total of N+1 values, where N is the number of compositional fields."
                              "If only one value is given, then all use the same value. Units: $1/K$");
           prm.declare_entry ("Specific heats", "1250.",
-                             Patterns::List(Patterns::Double(0)),
+                             Patterns::Anything(),
                              "List of specific heats $C_p$ for background mantle and compositional fields,"
                              "for a total of N+1 values, where N is the number of compositional fields."
                              "If only one value is given, then all use the same value. Units: $J /kg /K$");
           prm.declare_entry ("Thermal conductivities", "4.7",
-                             Patterns::List(Patterns::Double(0)),
+                             Patterns::Anything(),
                              "List of thermal conductivities for background mantle and compositional fields,"
                              "for a total of N+1 values, where N is the number of compositional fields."
-                             "If only one value is given, then all use the same value. Units: $W/m/K$ ");
+                             "If only one value is given, then all use the same value. Units: $W/m/K$.");
           prm.declare_entry("Viscosity averaging scheme", "harmonic",
                             Patterns::Selection("arithmetic|harmonic|geometric|maximum composition"),
                             "When more than one compositional field is present at a point "
@@ -232,18 +200,6 @@ namespace aspect
     void
     Multicomponent<dim>::parse_parameters (ParameterHandler &prm)
     {
-      // not pretty, but we need to get the number of compositional fields before
-      // simulator access has been initialized here...
-      unsigned int n_foreground_fields;
-      prm.enter_subsection ("Compositional fields");
-      {
-        n_foreground_fields = prm.get_integer ("Number of fields");
-      }
-      prm.leave_subsection();
-
-      const unsigned int n_fields= n_foreground_fields + 1;
-
-
       prm.enter_subsection("Material model");
       {
         prm.enter_subsection("Multicomponent");
@@ -261,22 +217,37 @@ namespace aspect
           else
             AssertThrow(false, ExcMessage("Not a valid viscosity averaging scheme"));
 
+          // Establish that a background field is required here
+          const bool has_background_field = true;
+
+          // Retrieve the list of composition names
+          const std::vector<std::string> list_of_composition_names = this->introspection().get_composition_names();
+
           // Parse multicomponent properties
-          densities = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Densities"))),
-                                                              n_fields,
-                                                              "Densities");
-          viscosities = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Viscosities"))),
-                                                                n_fields,
-                                                                "Viscosities");
-          thermal_conductivities = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Thermal conductivities"))),
-                                                                           n_fields,
-                                                                           "Thermal conductivities");
-          thermal_expansivities = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Thermal expansivities"))),
-                                                                          n_fields,
-                                                                          "Thermal expansivities");
-          specific_heats = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Specific heats"))),
-                                                                   n_fields,
-                                                                   "Specific heats");
+          densities = Utilities::parse_map_to_double_array (prm.get("Densities"),
+                                                            list_of_composition_names,
+                                                            has_background_field,
+                                                            "Densities");
+
+          viscosities = Utilities::parse_map_to_double_array (prm.get("Viscosities"),
+                                                              list_of_composition_names,
+                                                              has_background_field,
+                                                              "Viscosities");
+
+          thermal_conductivities = Utilities::parse_map_to_double_array (prm.get("Thermal conductivities"),
+                                                                         list_of_composition_names,
+                                                                         has_background_field,
+                                                                         "Thermal conductivities");
+
+          thermal_expansivities = Utilities::parse_map_to_double_array (prm.get("Thermal expansivities"),
+                                                                        list_of_composition_names,
+                                                                        has_background_field,
+                                                                        "Thermal expansivities");
+
+          specific_heats = Utilities::parse_map_to_double_array (prm.get("Specific heats"),
+                                                                 list_of_composition_names,
+                                                                 has_background_field,
+                                                                 "Specific heats");
 
         }
         prm.leave_subsection();

@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -43,7 +43,7 @@ namespace aspect
 
       const MaterialModel::MeltFractionModel<dim> *material_model =
         dynamic_cast<const MaterialModel::MeltFractionModel<dim>* > (&this->get_material_model());
-      AssertThrow(material_model != NULL,
+      AssertThrow(material_model != nullptr,
                   ExcMessage("The used material model is not derived from the 'MeltFractionModel' class, "
                              "and therefore does not support computing equilibrium melt fractions. "
                              "This is incompatible with the `porosity' "
@@ -69,7 +69,6 @@ namespace aspect
               in.composition[0][i] = 0.0;
 
           in.strain_rate[0] = SymmetricTensor<2,dim>();
-          in.cell = NULL;
 
           std::vector<double> melt_fraction(1);
           material_model->melt_fractions(in,melt_fraction);

@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2016 by the authors of the ASPECT code.
+  Copyright (C) 2016 - 2017 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -66,7 +66,7 @@ namespace aspect
      * component.
      */
     VariableDeclaration(const std::string &name,
-                        const std_cxx11::shared_ptr<FiniteElement<dim> > &fe,
+                        const std::shared_ptr<FiniteElement<dim> > &fe,
                         const unsigned int multiplicity,
                         const unsigned int n_blocks);
 
@@ -93,7 +93,7 @@ namespace aspect
     /**
      * The FiniteElement space.
      */
-    std_cxx11::shared_ptr<FiniteElement<dim> > fe;
+    std::shared_ptr<FiniteElement<dim> > fe;
 
     /**
      * The multiplicity used in FESystem: how many copies of @p fe are there?

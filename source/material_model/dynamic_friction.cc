@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2017 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -30,38 +30,6 @@ namespace aspect
 {
   namespace MaterialModel
   {
-    template <int dim>
-    const std::vector<double>
-    DynamicFriction<dim>::
-    compute_volume_fractions( const std::vector<double> &compositional_fields) const
-    {
-      std::vector<double> volume_fractions( compositional_fields.size()+1);
-
-      //clip the compositional fields so they are between zero and one
-      std::vector<double> x_comp = compositional_fields;
-      for ( unsigned int i=0; i < x_comp.size(); ++i)
-        x_comp[i] = std::min(std::max(x_comp[i], 0.0), 1.0);
-
-      //sum the compositional fields for normalization purposes
-      double sum_composition = 0.0;
-      for ( unsigned int i=0; i < x_comp.size(); ++i)
-        sum_composition += x_comp[i];
-
-      if (sum_composition >= 1.0)
-        {
-          volume_fractions[0] = 0.0;  //background mantle
-          for ( unsigned int i=1; i <= x_comp.size(); ++i)
-            volume_fractions[i] = x_comp[i-1]/sum_composition;
-        }
-      else
-        {
-          volume_fractions[0] = 1.0 - sum_composition; //background mantle
-          for ( unsigned int i=1; i <= x_comp.size(); ++i)
-            volume_fractions[i] = x_comp[i-1];
-        }
-      return volume_fractions;
-    }
-
     template <int dim>
     const std::vector<double>
     DynamicFriction<dim>::
@@ -113,7 +81,7 @@ namespace aspect
           // Drucker Prager yield criterion.
           strength[i] = ( (dim==3)
                           ?
-                          ( 6.0 * cohesions[i] * std::cos(phi[i]) + 2.0 * std::max(pressure,0.0) * std::sin(phi[i]) )
+                          ( 6.0 * cohesions[i] * std::cos(phi[i]) + 6.0 * std::max(pressure,0.0) * std::sin(phi[i]) )
                           / ( std::sqrt(3.0) * ( 3.0 + std::sin(phi[i]) ) )
                           :
                           cohesions[i] * std::cos(phi[i]) + std::max(pressure,0.0) * std::sin(phi[i]) );
@@ -281,7 +249,7 @@ namespace aspect
                              Patterns::List(Patterns::Double(0)),
                              "List of thermal conductivities for background mantle and compositional fields,"
                              "for a total of N+1 values, where N is the number of compositional fields."
-                             "If only one value is given, then all use the same value. Units: $W/m/K$ ");
+                             "If only one value is given, then all use the same value. Units: $W/m/K$.");
           prm.declare_entry("Viscosity averaging scheme", "harmonic",
                             Patterns::Selection("arithmetic|harmonic|geometric|maximum composition"),
                             "When more than one compositional field is present at a point "
@@ -319,7 +287,7 @@ namespace aspect
                                Patterns::List(Patterns::Double(0)),
                                "List of background viscosities for mantle and compositional fields,"
                                "for a total of N+1 values, where N is the number of compositional fields."
-                               "If only one value is given, then all use the same value. Units: $Pa s $");
+                               "If only one value is given, then all use the same value. Units: $Pa \\, s $");
           }
           prm.leave_subsection();
         }

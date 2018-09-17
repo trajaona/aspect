@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2016 by the authors of the ASPECT code.
+  Copyright (C) 2016 - 2017 by the authors of the ASPECT code.
 
  This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with ASPECT; see the file doc/COPYING.  If not see
+ along with ASPECT; see the file LICENSE.  If not see
  <http://www.gnu.org/licenses/>.
  */
 
@@ -69,7 +69,7 @@ namespace aspect
       ReferenceCell<dim>::generate_particle_positions_in_unit_cell()
       {
         std::vector<Point<dim> > particle_positions;
-        std_cxx11::array<double, dim> spacing;
+        std::array<double, dim> spacing;
 
         // Calculate separation of particles
         for (unsigned int i = 0; i < dim; ++i)
@@ -175,7 +175,7 @@ namespace aspect
     {
       ASPECT_REGISTER_PARTICLE_GENERATOR(ReferenceCell,
                                          "reference cell",
-                                         "Generate a uniform distribution of particles per cell and spatial direction in "
+                                         "Generates a uniform distribution of particles per cell and spatial direction in "
                                          "the unit cell and transforms each of the particles back to real region in the model "
                                          "domain. Uniform here means the particles will be generated with an equal spacing in "
                                          "each spatial dimension")

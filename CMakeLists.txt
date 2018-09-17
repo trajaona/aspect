@@ -1,4 +1,4 @@
-# Copyright (C) 2013 - 2016 by the authors of the ASPECT code.
+# Copyright (C) 2013 - 2018 by the authors of the ASPECT code.
 #
 # This file is part of ASPECT.
 #
@@ -24,8 +24,8 @@ MESSAGE(STATUS "====================================================")
 # Set the name of the project and target:
 SET(TARGET "aspect")
 
-FILE(GLOB_RECURSE TARGET_SRC  "source/*.cc" "include/*.h")
-INCLUDE_DIRECTORIES(include)
+FILE(GLOB_RECURSE TARGET_SRC  "source/*.cc" "unit_tests/*.cc" "include/*.h" "contrib/catch/catch.hpp" "contrib/WorldBuilder/source/*.cc")
+INCLUDE_DIRECTORIES(include ${CMAKE_BINARY_DIR}/include contrib/catch contrib/WorldBuilder/include/)
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 
@@ -45,6 +45,13 @@ IF(NOT ${deal.II_FOUND})
 ENDIF()
 
 MESSAGE(STATUS "Found deal.II version ${DEAL_II_PACKAGE_VERSION} at '${deal.II_DIR}'")
+
+IF(NOT DEAL_II_WITH_CXX11)
+  MESSAGE(FATAL_ERROR "\n*** ASPECT requires C++11 but your version of deal.II is not "
+    "configured with it. This likely means that your compiler is too old. Check "
+    "DEAL_II_WITH_CXX11 in deal.II.")
+ENDIF()
+
 
 SET(ASPECT_USE_PETSC OFF CACHE BOOL "Use PETSc instead of Trilinos if set to 'on'.")
 
@@ -99,8 +106,13 @@ FOREACH(_source_file ${TARGET_SRC})
 ENDFOREACH()
 
 
+
 # load in version info and export it
 FILE(STRINGS "${CMAKE_SOURCE_DIR}/VERSION" ASPECT_PACKAGE_VERSION LIMIT_COUNT 1)
+
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/macro_aspect_query_git_information.cmake)
+ASPECT_QUERY_GIT_INFORMATION("ASPECT")
+CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/include/aspect/revision.h.in ${CMAKE_BINARY_DIR}/include/aspect/revision.h @ONLY)
 
 INCLUDE(CMakePackageConfigHelpers)
 WRITE_BASIC_PACKAGE_VERSION_FILE(
@@ -133,6 +145,7 @@ CONFIGURE_FILE(
 # Next, set up the testsuite
 
 SET(ASPECT_RUN_ALL_TESTS OFF CACHE BOOL "Set up complete test suite to run.")
+SET(ASPECT_COMPARE_TEST_RESULTS ON CACHE BOOL "Compare test results with high accuracy.")
 
 CONFIGURE_FILE(
   ${CMAKE_SOURCE_DIR}/tests/cmake/CTestCustom.ctest.in
@@ -150,11 +163,61 @@ ADD_CUSTOM_TARGET(setup_tests
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   COMMENT "Enabling all tests ...")
 
+# Disable the ability to run all tests in an in-source build:
+IF (("${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}") AND ASPECT_RUN_ALL_TESTS)
+  SET(ASPECT_RUN_ALL_TESTS OFF CACHE BOOL "" FORCE)
+  MESSAGE(FATAL_ERROR "\nEnabling all tests is not supported in in-source builds. Please create a separate build directory!\n")
+ENDIF()
+
+
 SET(ASPECT_TEST_GENERATOR "Unix Makefiles" CACHE STRING 
   "Generator to use for the test cmake project. Using ninja instead of make is not recommended.")
 
+
+# Allow us to make a global "test" target:
+IF(POLICY CMP0037)
+  # allow to override "test" target
+  CMAKE_POLICY(SET CMP0037 OLD)
+ENDIF()
+
+# This is an empty target but we will make it depend on tests/ and unit_tests/ next:
+ADD_CUSTOM_TARGET(test)
+
+# Generate CTestTestfile.cmake in the main build folder that lists all subfolders
+# that contain tests. This way you can call "ctest" in the build directory.
+FILE(WRITE ${CMAKE_BINARY_DIR}/CTestTestfile.cmake "# auto-generated ctest file\n")
+
+IF(EXISTS ${CMAKE_SOURCE_DIR}/unit_tests/CMakeLists.txt)
+  # If we have the unit_tests directory, add it so ctest picks it up and configure
+  # the test project in the subfolder:
+  FILE(APPEND ${CMAKE_BINARY_DIR}/CTestTestfile.cmake "SUBDIRS(unit_tests)\n")
+  FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/unit_tests)
+  EXECUTE_PROCESS(
+    COMMAND ${CMAKE_COMMAND}
+        -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -D ASPECT_BINARY=${CMAKE_BINARY_DIR}/aspect
+        ${CMAKE_CURRENT_SOURCE_DIR}/unit_tests
+    OUTPUT_FILE setup_unit_tests.log
+    RESULT_VARIABLE test_cmake_result
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/unit_tests
+   )
+  IF(NOT test_cmake_result EQUAL 0)
+    MESSAGE(FATAL_ERROR "ERROR: unittest/ project could not be configured.")
+  ENDIF()
+
+  # Finally hook up that "make test" will execute the tests:
+  ADD_CUSTOM_TARGET(run_unit_tests
+    COMMAND ${CMAKE_BINARY_DIR}/aspect --test
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/unit_tests
+    DEPENDS aspect
+    COMMENT "Running unit_tests ...")
+
+  ADD_DEPENDENCIES(test run_unit_tests)
+ENDIF()
+
 IF(EXISTS ${CMAKE_SOURCE_DIR}/tests/CMakeLists.txt)
-  FILE(WRITE ${CMAKE_BINARY_DIR}/CTestTestfile.cmake "SUBDIRS(tests)")
+  # Hook up the tests:
+  FILE(APPEND ${CMAKE_BINARY_DIR}/CTestTestfile.cmake "SUBDIRS(tests)\n")
 
   FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tests)
 
@@ -163,34 +226,31 @@ IF(EXISTS ${CMAKE_SOURCE_DIR}/tests/CMakeLists.txt)
   MESSAGE(STATUS "Setting up test project, see tests/setup_tests.log for details.")
   EXECUTE_PROCESS(
     COMMAND ${CMAKE_COMMAND} -G ${ASPECT_TEST_GENERATOR}
-	-D ASPECT_RUN_ALL_TESTS=${ASPECT_RUN_ALL_TESTS}
-	-D ASPECT_DIR=${CMAKE_BINARY_DIR}
-	-D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-	-D ASPECT_BINARY=${aspect_binary}
-	${CMAKE_CURRENT_SOURCE_DIR}/tests
+        -D ASPECT_RUN_ALL_TESTS=${ASPECT_RUN_ALL_TESTS}
+        -D ASPECT_COMPARE_TEST_RESULTS=${ASPECT_COMPARE_TEST_RESULTS}
+        -D ASPECT_DIR=${CMAKE_BINARY_DIR}
+        -D CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+        -D ASPECT_BINARY=${aspect_binary}
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests
     OUTPUT_FILE setup_tests.log
     RESULT_VARIABLE test_cmake_result
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tests
    )
   IF(NOT test_cmake_result EQUAL 0)
-    MESSAGE(FATAL_ERROR "ERROR: Test project could not be configured.")
+    MESSAGE(FATAL_ERROR "ERROR: tests/ project could not be configured.")
   ENDIF()
 
-
-  IF(POLICY CMP0037)
-    # allow to override "test" target
-    CMAKE_POLICY(SET CMP0037 OLD)
-  ENDIF()
-
-  ADD_CUSTOM_TARGET(test
+  # Finally hook up that "make test" will execute the tests:
+  ADD_CUSTOM_TARGET(run_tests
     COMMAND ${CMAKE_COMMAND} --build . --target test
     WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/tests
     DEPENDS aspect
     COMMENT "Running tests ...")
 
+  ADD_DEPENDENCIES(test run_tests)
 ENDIF()
 
-
+# Provide the "generate_reference_output" target:
 ADD_CUSTOM_TARGET(generate_reference_output
   COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/generate_reference_output.sh
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -280,6 +340,39 @@ ENDIF()
 
 DEAL_II_INVOKE_AUTOPILOT()
 
+FIND_PACKAGE(PerpleX QUIET HINTS ./contrib/perplex/install/ ../ ../../ $ENV{PERPLEX_DIR})
+IF(${PerpleX_FOUND})
+  MESSAGE(STATUS "PerpleX found at ${PerpleX_INCLUDE_DIR}")
+  INCLUDE_DIRECTORIES(${PerpleX_INCLUDE_DIR})
+  TARGET_LINK_LIBRARIES(${TARGET} ${PerpleX_LIBRARIES})
+  SET(ASPECT_WITH_PERPLEX ON)
+  FOREACH(_source_file ${TARGET_SRC})
+    SET_PROPERTY(SOURCE ${_source_file}
+      APPEND PROPERTY COMPILE_DEFINITIONS ASPECT_WITH_PERPLEX="1")
+  ENDFOREACH()
+ELSE()
+  SET(ASPECT_WITH_PERPLEX OFF)
+ENDIF()
+
+
+# Check whether we can find the WorldBuilder files. If so, make sure we
+# add a preprocessor #define that says that the WorldBuilder exists.
+EXECUTE_PROCESS(COMMAND ls ${CMAKE_SOURCE_DIR}/contrib/WorldBuilder/VERSION
+                RESULT_VARIABLE result
+                OUTPUT_QUIET ERROR_QUIET)
+IF (result)
+  MESSAGE("-- World Builder not found.")
+  SET(ASPECT_WITH_WORLD_BUILDER OFF CACHE BOOL "" FORCE)
+ELSE()
+  FILE(STRINGS "${CMAKE_SOURCE_DIR}/contrib/WorldBuilder/VERSION" WorldBuilderVersion)
+  MESSAGE("-- World Builder version ${WorldBuilderVersion} found.")
+  SET(ASPECT_WITH_WORLD_BUILDER ON CACHE BOOL "If ON the World Builder is compiled togheter with ASPECT.")
+
+  FOREACH(_source_file ${TARGET_SRC})
+    SET_PROPERTY(SOURCE ${_source_file}
+                 APPEND PROPERTY COMPILE_DEFINITIONS ASPECT_USE_WORLD_BUILDER=1)
+  ENDFOREACH()
+ENDIF()
 
 IF (ASPECT_USE_SHARED_LIBS)
   # some systems need to explicitly link to some libraries to use dlopen
@@ -295,6 +388,12 @@ ENDIF()
 # string. The only thing we can do is a configure check and disable the
 # exceptions. This is done here:
 SET(ASPECT_USE_FP_EXCEPTIONS ON CACHE BOOL "If ON, floating point exception are raised in debug mode.")
+
+# Clang 6.0 throws random floating point exceptions, which we could not
+# track down. Disable the exceptions for now.
+IF("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang" AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 6.0.0)
+  SET(ASPECT_USE_FP_EXCEPTIONS OFF CACHE BOOL "" FORCE)
+ENDIF()
 
 IF (ASPECT_USE_FP_EXCEPTIONS)
   INCLUDE(${CMAKE_SOURCE_DIR}/cmake/fpe_check.cmake)
@@ -319,10 +418,10 @@ IF (ASPECT_PRECOMPILE_HEADERS)
   # and unity build to pass. We need to exclude some headers that
   # frequently cause problems, and undefine some macros between source 
   # files that would otherwise interfere with each other.
-  set_target_properties (aspect PROPERTIES
+  SET_TARGET_PROPERTIES (aspect PROPERTIES
       COTIRE_PREFIX_HEADER_IGNORE_PATH
       "/usr/include/;${CMAKE_SOURCE_DIR};${CMAKE_BINARY_DIR}")
-  set_source_files_properties (${TARGET_SRC} PROPERTIES
+  SET_SOURCE_FILES_PROPERTIES (${TARGET_SRC} PROPERTIES
       COTIRE_UNITY_SOURCE_POST_UNDEFS "INSTANTIATE")
 
   # This line activates the cotire module for the aspect target, 
@@ -334,14 +433,14 @@ ENDIF()
 
 # Find the deal.II parameter GUI and install helper script
 FIND_PROGRAM(PARAMETER_GUI_EXECUTABLE
-	parameter_gui
-	HINTS $ENV{PARAMETER_GUI_DIR} ${PARAMETER_GUI_DIR} ${PARAMETER_GUI_DIR}/bin
-	PATH bin)
+        parameter_gui
+        HINTS $ENV{PARAMETER_GUI_DIR} $ENV{PARAMETER_GUI_DIR}/bin ${PARAMETER_GUI_DIR} ${PARAMETER_GUI_DIR}/bin
+        PATH bin)
 MARK_AS_ADVANCED(CLEAR PARAMETER_GUI_EXECUTABLE)
 
 # did the user specify something that doesn't exist?
 IF (PARAMETER_GUI_EXECUTABLE 
-	AND
+        AND
     (NOT EXISTS ${PARAMETER_GUI_EXECUTABLE} OR IS_DIRECTORY ${PARAMETER_GUI_EXECUTABLE}))
   MESSAGE(STATUS "Warning: PARAMETER_GUI_EXECUTABLE '${PARAMETER_GUI_EXECUTABLE}' does not exist")
   SET(PARAMETER_GUI_EXECUTABLE "PARAMETER_GUI_EXECUTABLE-NOTFOUND" CACHE FILEPATH "" FORCE)
@@ -357,10 +456,10 @@ ELSE()
   @ONLY
   )
 INSTALL(FILES ${CMAKE_BINARY_DIR}/aspect-gui
-	DESTINATION bin
-	PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
-		GROUP_READ GROUP_EXECUTE
-		WORLD_READ WORLD_EXECUTE)
+        DESTINATION bin
+        PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+                GROUP_READ GROUP_EXECUTE
+                WORLD_READ WORLD_EXECUTE)
 ENDIF()
 
 #
@@ -375,13 +474,16 @@ INSTALL(TARGETS aspect
 SET_PROPERTY(TARGET aspect PROPERTY INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # headers:
-INSTALL(DIRECTORY include/ DESTINATION include
-  COMPONENT includes)
+INSTALL(DIRECTORY include/ 
+  DESTINATION include
+  COMPONENT includes
+  FILES_MATCHING PATTERN "*.h")
 
 # cmake stuff:
 INSTALL(FILES ${CMAKE_BINARY_DIR}/forinstall/AspectConfig.cmake ${CMAKE_BINARY_DIR}/AspectConfigVersion.cmake
-	DESTINATION "lib/cmake/Aspect/")
+        DESTINATION "lib/cmake/Aspect/")
+
+INSTALL(FILES ${CMAKE_BINARY_DIR}/include/aspect/revision.h DESTINATION "include/aspect/")
 
 MESSAGE(STATUS "Writing config into detailed.log...")
 INCLUDE(cmake/write_config)
-

@@ -14,13 +14,14 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
 
 #include <aspect/postprocess/mass_flux_statistics.h>
 #include <aspect/utilities.h>
+#include <aspect/geometry_model/interface.h>
 
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/fe/fe_values.h>
@@ -83,7 +84,7 @@ namespace aspect
               {
                 fe_face_values.reinit (cell, f);
                 // Set use_strain_rates to false since we don't need viscosity
-                in.reinit(fe_face_values, &cell, this->introspection(), this->get_solution(), false);
+                in.reinit(fe_face_values, cell, this->introspection(), this->get_solution(), false);
 
                 this->get_material_model().evaluate(in, out);
 
