@@ -32,8 +32,7 @@ ENDIF ()
 
 DEAL_II_INITIALIZE_CACHED_VARIABLES()
 
-SET(TARGET "prescribed_velocity")
+SET(TARGET "plate_motion")
 PROJECT(${TARGET})
-
-ADD_LIBRARY(${TARGET} SHARED prescribed_velocity.cc)
+ADD_LIBRARY(${TARGET} SHARED plate_motion.cc)
 ASPECT_SETUP_PLUGIN(${TARGET})

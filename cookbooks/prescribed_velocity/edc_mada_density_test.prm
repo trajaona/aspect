@@ -1,0 +1,153 @@
+set Dimension                              = 3
+
+set Use years in output instead of seconds = true
+set End time                               = 0
+set Additional shared libraries = ./libplate_motion.so
+set Dimension                              = 3
+set Output directory                       = /Users/trajaona/aspect_test/output/edc_mada_apm_test
+set Nonlinear solver scheme                = iterated Stokes
+set Nonlinear solver tolerance             = 1e-5
+set Linear solver tolerance                = 1e-4
+set Max nonlinear iterations               = 10
+set Number of cheap Stokes solver steps    = 0
+set Pressure normalization                 = surface
+set Surface pressure                       = 0
+
+#subsection Geometry model
+#  set Model name = ellipsoidal chunk
+#  subsection Ellipsoidal chunk
+#   set  NE corner = 55:-10
+#   set  NW corner = 35:-10
+#   set  SW corner = 35:-26
+#   set  SE corner =
+#   set Depth = 500000
+#  end
+#end   
+
+
+subsection Geometry model
+  set Model name = chunk
+
+  subsection Chunk
+    set Chunk minimum longitude = 35
+    set Chunk maximum longitude = 55
+    set Chunk minimum latitude = -28
+    set Chunk maximum latitude = -8
+    set Chunk inner radius = 5878137
+    set Chunk outer radius = 6336000
+  end
+end
+
+subsection Discretization
+ set Temperature polynomial degree = 2
+ subsection Stabilization parameters
+   set Use artificial viscosity smoothing = true
+ end
+end
+  
+subsection Initial temperature model
+  set Model name = adiabatic boundary
+  subsection Adiabatic boundary
+    set Data directory           = /Users/trajaona/aspect_test/input_files/
+    set Isotherm depth filename  = litho.africa.txt
+  end
+end
+
+subsection Compositional fields
+  set Number of fields = 2
+  set Names of fields  = crust, mantle_lithosphere
+end
+
+subsection Initial composition model
+   set Model name = lithosphere
+end
+
+
+
+
+subsection Boundary temperature model
+  set Model name = initial temperature
+  subsection Initial temperature
+  end
+end
+
+
+subsection Model settings
+  set Fixed temperature boundary indicators   = outer, east, west, north, south, inner
+  set Zero velocity boundary indicators       = north, south
+  set Prescribed velocity boundary indicators = 
+  set Tangential velocity boundary indicators = inner,outer
+  set Include adiabatic heating               = false
+  set Include shear heating                   = false
+  set Free surface boundary indicators        = 
+end
+
+subsection Boundary velocity model
+  subsection Ascii data model
+    set Data file name       = edc_mada_3d_%s.0.txt
+    set Data directory = /Users/trajaona/aspect_test/input_files/boundary_velocity/
+    set Scale factor = 1
+  end
+end
+
+subsection Gravity model
+  set Model name = radial earth-like
+end
+
+subsection Material model
+  set Model name                 = upper mantle
+  subsection Upper mantle
+    set Base model                                 = visco plastic
+    set Grain size                                 = 0.01
+    set Activation volume for diffusion creep      = 6e-6
+    set Prefactor for diffusion creep              = 1.5e-15
+    set Grain size exponent for diffusion creep    = 3
+    set Activation energie for diffusion creep     = 3.75e5
+    set Prefactor for dislocation creep            = 6.52e-16
+    set Activation energie for dislocation creep   = 5.3e5
+    set Activation volume for dislocation creep    = 18e-6
+    set Stress exponent for dislocation creep      = 3.5
+    set Viscosity averaging scheme                 = harmonic
+    set Data directory           = /Users/trajaona/aspect_test/input_files/
+    set Isotherm depth filename  = litho.africa.txt
+end
+
+subsection Visco Plastic
+   set Viscosity averaging scheme = harmonic
+   set Viscous flow law = dislocation
+   set Prefactors for dislocation creep          =  6.52e-16, 7.13e-18, 6.52e-16
+   set Stress exponents for dislocation creep    =  3.5,      3.0,      3.5
+   set Activation energies for dislocation creep =  540.e3,   345.e3,   530.e3
+   set Activation volumes for dislocation creep  =  18e-6,       0.,   18.e-6
+   set Angles of internal friction = 20., 20.,   20.
+   set Cohesions                   = 20.0, 20.e6, 20.e6
+end
+   set Material averaging = harmonic average
+end
+
+subsection Mesh refinement
+  set Initial global refinement                = 3
+  set Initial adaptive refinement              = 0
+  set Time steps between mesh refinement       = 0
+end
+
+#Turn prescribed velocities on
+set Prescribe plate motion = true
+
+subsection Plate velocities
+  subsection Velocity function
+    set Variable names = x,y,z,t
+    # Return u_x; u_y; u_z (u_z only used if in 3d)
+   set Function expression = -0.01024 ; 0.02176 ; 0.01903
+  end
+end
+
+subsection Postprocess
+  set List of postprocessors = visualization, velocity statistics, basic statistics
+
+  subsection Visualization
+    set List of output variables      = viscosity, density, strain rate, velocity inclination
+    set Time between graphical output = 1.0
+    set Output format = vtu
+end
+end
