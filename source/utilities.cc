@@ -33,6 +33,7 @@
 
 #include <aspect/geometry_model/box.h>
 #include <aspect/geometry_model/spherical_shell.h>
+#include <aspect/geometry_model/ellipsoidal_chunk.h>
 #include <aspect/geometry_model/chunk.h>
 
 #include <fstream>
@@ -307,24 +308,21 @@ namespace aspect
 
       template <int dim>
       Point<dim>
-      ellipsoidal_to_cartesian_coordinates(const std_cxx11::array<double,dim> &phi_theta_d,
+      ellipsoidal_to_cartesian_coordinates(const Point<dim> &phi_theta_d,
                                            const double &semi_major_axis_a,
                                            const double &eccentricity)
       {
-        const double phi   = phi_theta_d[0];
-        const double theta = phi_theta_d[1];
-        const double d     = phi_theta_d[2];
+        const double phi   = phi_theta_d(0);
+        const double theta = phi_theta_d(1);
+        const double d     = phi_theta_d(2);
 
         const double R_bar = semi_major_axis_a / std::sqrt(1 - (eccentricity * eccentricity *
                                                                 std::sin(theta) * std::sin(theta)));
 
-        return Point<dim> ((R_bar + d) * std::cos(phi) * std::cos(theta),
+        return Point<dim>  ((R_bar + d) * std::cos(phi) * std::cos(theta),
                            (R_bar + d) * std::sin(phi) * std::cos(theta),
                            ((1 - eccentricity * eccentricity) * R_bar + d) * std::sin(theta));
       }
-
-
-
 
 
       CoordinateSystem
@@ -1550,6 +1548,7 @@ namespace aspect
     {
       AssertThrow ((dynamic_cast<const GeometryModel::SphericalShell<dim>*> (&this->get_geometry_model()))
                    || (dynamic_cast<const GeometryModel::Chunk<dim>*> (&this->get_geometry_model())) != 0
+				   || (dynamic_cast<const GeometryModel::EllipsoidalChunk<dim>*> (&this->get_geometry_model())) != 0
                    || (dynamic_cast<const GeometryModel::Box<dim>*> (&this->get_geometry_model())) != 0,
                    ExcMessage ("This ascii data plugin can only be used when using "
                                "a spherical shell, chunk or box geometry."));
@@ -1878,6 +1877,15 @@ namespace aspect
               for (unsigned int i = 0; i < dim; i++)
                 internal_position[i] = spherical_position[i];
             }
+
+          else if (dynamic_cast<const GeometryModel::EllipsoidalChunk<dim>*> (&this->get_geometry_model()) != 0)
+          {
+                     const std_cxx11::array<double,dim> ellipsoidal_position =
+                       Utilities::Coordinates:: WGS84_coordinates(position);
+
+                     for (unsigned int i = 0; i < dim; i++)
+                       internal_position[i] = ellipsoidal_position[i];
+           }
 
           const std_cxx11::array<unsigned int,dim-1> boundary_dimensions =
             get_boundary_dimensions(boundary_indicator);
@@ -2549,7 +2557,7 @@ namespace aspect
           case 3:
           {
             std_cxx11::array<double,dim> v_une = Utilities::cartesian_to_spherical_components<dim>(v_origin, v);
-            north_component = v_une[2];
+            north_component = v_une[1];
             for (unsigned int d=0; d < dim-1; d++)
               horizontal_components[d] = v_une[d+1];
             //if (v_une[1] > 0.0 && azimuth > numbers::PI/2)
@@ -2634,133 +2642,33 @@ namespace aspect
       return index;
     }
 
-    template <int dim>
-    Eigen<dim>::Eigen (SymmetricTensor<2,dim> &A)
-    :
-	eigval(A)
-	{}
+    double linear_interpolation( std::vector<double> &xData,
+    		            std::vector<double> &yData,
+						double x, bool extrapolate )
+    {
+       int size = xData.size();
 
-	template <int dim>
-	std::pair<std::pair<unsigned int , unsigned int>, double>
-    Eigen<dim>::max_of_diagonal(Tensor<2,dim> &M,
-    		                    std::pair<unsigned int, unsigned int> &indexes, double  &max_diag)
-	{
-      max_diag = 0.0;
-	  for (unsigned int i = 0; i <dim ; ++i)
-	  {
-		  for (unsigned int j = 0; j <dim; ++j)
-		  {
-			  if (std::fabs(M[i][j]) > max_diag && i!=j)
-			  {
-				  max_diag = std::fabs(M[i][j]);
-				  indexes.first = i;
-				  indexes.second = j;
-			  }
-		  }
-	  }
+       int i = 0;                                                                  // find left end of interval for interpolation
+       if ( x >= xData[size - 2] )                                                 // special case: beyond right end
+       {
+          i = size - 2;
+       }
+       else
+       {
+          while ( x > xData[i+1] ) i++;
+       }
+       double xL = xData[i], yL = yData[i], xR = xData[i+1], yR = yData[i+1];      // points on either side (unless beyond ends)
+       if ( !extrapolate )                                                         // if beyond ends of array and not extrapolating
+       {
+          if ( x < xL ) yR = yL;
+          if ( x > xR ) yL = yR;
+       }
 
-	  return std::make_pair(indexes,max_diag);
-	}
+       double dydx = ( yR - yL ) / ( xR - xL );                                    // gradient
 
-	template <int dim>
-	void
-	Eigen<dim>::rotate (Tensor<2, dim> &M,
-                        std::pair<unsigned int, unsigned int> &indexes,
-						Tensor<2, dim> &eigvec)
-	{
-	  double s;
-	  double c;
-	  unsigned int k = indexes.first;
-	  unsigned int l = indexes.second;
+       return yL + dydx * ( x - xL );                                              // linear interpolation
+    }
 
-	  if (M[k][l] != 0.0)
-	  {
-		double t, tau;
-		tau = (M[l][l] - M[k][k]) / (2 * M[k][l]);
-
-		if (tau > 0.0)
-		    t = 1.0 / (tau + std::sqrt(1.0 + tau * tau));
-		else
-			t = -1.0 / (-tau + std::sqrt(1.0 + tau * tau));
-
-	  c = 1 / std::sqrt(1.0 + t*t);
-	  s = c*t;
-	  }
-	  else
-	  {
-		  c = 1.0;
-		  s = 0.0;
-	  }
-
-	  double m_kk, m_ll, m_ik, m_il, eigvec_ik, eigvec_il;
-	  m_kk = M[k][k];
-	  m_ll = M[l][l];
-	  // changing the matrix elements with indices k, l
-	  M[k][k] = c*c*m_kk - 2.0*c*s*M[k][l] + s*s*m_ll;
-	  M[l][l] = s*s*m_kk + 2.0*c*s*M[k][l] + c*c*m_ll;
-	  M[k][l] = 0.0;
-	  M[l][k] = 0.0;
-
-	  // and the we change the remaining elements
-	  for (unsigned int i =0; i < dim; ++i)
-	  {
-		  if (i != k && i != l)
-		  {
-			  m_ik = M[i][k];
-			  m_il = M[i][l];
-			  M[i][k] = c*m_ik - s*m_il;
-			  M[k][i] = M[i][k];
-			  M[i][l] = c*m_il + s*m_ik;
-			  M[l][i] = M[i][l];
-		  }
-	   // Finally, we compute the new eigenvectors
-	   eigvec_ik = eigvec[i][k];
-	   eigvec_il = eigvec[i][l];
-	   eigvec[i][k] = c*eigvec_ik - s*eigvec_il;
-	   eigvec[i][l] = c*eigvec_il + s*eigvec_ik;
-	  }
-	  return;
-	 }
-
-	template<int dim>
-	void
-	Eigen<dim>::solve()
-	{
-	  int iterations = 0;
-      double max_diag;
-      std::pair<unsigned int, unsigned int> indexes;
-	  int max_number_iteration = dim * dim *dim;
-	  eigvec = unit_symmetric_tensor<dim>();
-
-	  std::pair<std::pair<unsigned int , unsigned int>, double> indexes_maxdiag =
-	  Eigen<dim>::max_of_diagonal(eigval, indexes, max_diag);
-	  max_diag = indexes_maxdiag.second;
-
-	  while (std::fabs(max_diag) > 0.0 && iterations < max_number_iteration)
-	  {
-		 indexes_maxdiag = Eigen<dim>::max_of_diagonal(eigval, indexes, max_diag);
-		 max_diag = indexes_maxdiag.second;
-	     Eigen<dim>::rotate(eigval,
-	    		            indexes_maxdiag.first,
-							eigvec);
-	  }
-	}
-
-	template<int dim>
-	Tensor<2, dim>
-	Eigen<dim>::eigenvalue()
-	{
-		Eigen<dim>::solve();
-		return eigval;
-	}
-
-	template<int dim>
-	Tensor<2, dim>
-	Eigen<dim>::eigenvector()
-	{
-		Eigen<dim>::solve();
-		return eigvec;
-	}
 
 // Explicit instantiations
 
@@ -2774,9 +2682,6 @@ namespace aspect
 
     ASPECT_INSTANTIATE(INSTANTIATE)
 
-
-    template class Eigen<2>;
-    template class Eigen<3>;
     template class AsciiDataLookup<1>;
     template class AsciiDataLookup<2>;
     template class AsciiDataLookup<3>;
@@ -2807,11 +2712,11 @@ namespace aspect
     template Point<2> Coordinates::spherical_to_cartesian_coordinates<2>(const std_cxx11::array<double,2> &scoord);
     template Point<3> Coordinates::spherical_to_cartesian_coordinates<3>(const std_cxx11::array<double,3> &scoord);
 
-    template Point<2> Coordinates::ellipsoidal_to_cartesian_coordinates<2>(const std_cxx11::array<double,2> &phi_theta_d,
+    template Point<2> Coordinates::ellipsoidal_to_cartesian_coordinates<2>(const Point<2> &phi_theta_d,
                                                                            const double &semi_major_axis_a,
                                                                            const double &eccentricity);
 
-    template Point<3> Coordinates::ellipsoidal_to_cartesian_coordinates<3>(const std_cxx11::array<double,3> &phi_theta_d,
+    template Point<3> Coordinates::ellipsoidal_to_cartesian_coordinates<3>(const Point<3>  &phi_theta_d,
                                                                            const double &semi_major_axis_a,
                                                                            const double &eccentricity);
 

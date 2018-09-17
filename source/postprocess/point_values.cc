@@ -46,38 +46,40 @@ namespace aspect
           // will be on only one processor's owned cells, so the others are
           // going to throw an exception. make sure at least one processor
           // finds the given point
+    	  std_cxx11::array<double,dim> w      = Utilities::Coordinates::WGS84_coordinates(evaluation_points[p]);
+    	  std::cout<< w[0]<<"  "<< w[1]<<"  "<< w[2] <<std::endl;
           bool point_found = false;
           try
-            {
+         {
               VectorTools::point_value(this->get_mapping(),
                                        this->get_dof_handler(),
                                        this->get_solution(),
                                        evaluation_points[p],
                                        current_point_values[p]);
               point_found = true;
-            }
+          }
           catch (const VectorTools::ExcPointNotAvailableHere &)
-            {
+          {
               // ignore
-            }
-
+          }
+          std::cout<<point_found<<std::endl;
           // ensure that at least one processor found things
           const int n_procs = Utilities::MPI::sum (point_found ? 1 : 0, this->get_mpi_communicator());
-          AssertThrow (n_procs > 0,
+         AssertThrow (n_procs > 0,
                        ExcMessage ("While trying to evaluate the solution at point " +
-                                   Utilities::to_string(evaluation_points[p][0]) + ", " +
-                                   Utilities::to_string(evaluation_points[p][1]) +
+                                   Utilities::to_string(ellipsoidal_evaluation_points[p][0]) + ", " +
+                                   Utilities::to_string(ellipsoidal_evaluation_points[p][1]) +
                                    (dim == 3
                                     ?
-                                    ", " + Utilities::to_string(evaluation_points[p][2])
+                                    ", " + Utilities::to_string(ellipsoidal_evaluation_points[p][2])
                                     :
                                     "") + "), " +
-                                   "no processors reported that the point lies inside the " +
-                                   "set of cells they own. Are you trying to evaluate the " +
-                                   "solution at a point that lies outside of the domain?"
-                                  ));
+                                  "no processors reported that the point lies inside the " +
+                                 "set of cells they own. Are you trying to evaluate the " +
+                                "solution at a point that lies outside of the domain?"
+                              ));
 
-          // Reduce all collected values into local Vector
+       // Reduce all collected values into local Vector
           Utilities::MPI::sum (current_point_values[p], this->get_mpi_communicator(),
                                current_point_values[p]);
 
@@ -136,7 +138,7 @@ namespace aspect
                       else
                         f << time_point->second[i][c] * year_in_seconds;
 
-                      f << (c != time_point->second[i].size()-1 ? ' ' : '\n');
+                        f << (c != time_point->second[i].size()-1 ? ' ' : '\n');
                     }
                 }
 
@@ -165,6 +167,7 @@ namespace aspect
               for (unsigned int i=0; i<evaluation_points.size(); ++i)
                 {
                   std_cxx11::array<double,dim> wcoord      = Utilities::Coordinates::WGS84_coordinates(evaluation_points[i]);
+
                   Point<dim> x;
                   for (unsigned int d=0; d<dim; ++d)
                     x[d] = wcoord[d];
@@ -187,16 +190,15 @@ namespace aspect
                       // but we convert velocities to meters per year if so
                       // requested
 
-
                       if ((this->introspection().component_masks.velocities[c] == false)
                           ||
                           (this->convert_output_to_years() == false))
-                        f << v_une[c];
+                        f << v[c];
                       else
-                        f << v_une[c] * year_in_seconds;
+                        f << v[c] * year_in_seconds;
                       f << ' ';
                     }
-                  f << Utilities::compute_vector_azimuth_wrt_north<dim>(evaluation_points[i], v);
+                 // f << Utilities::compute_vector_azimuth_wrt_north<dim>(evaluation_points[i], v);
                   f << '\n';
                 }
 
@@ -281,19 +283,22 @@ namespace aspect
                   evaluation_points.push_back (point);
                 }
               else if (coordinate_system ==  Utilities::Coordinates::CoordinateSystem::ellipsoidal)
-                {
-                  const double semi_major_axis_a = 6378137.0;
-                  const double eccentricity = 8.1819190842622e-2;
-                  const double degree_to_radian = numbers::PI/180.;
-                  std_cxx11::array<double,dim> phi_theta_d;
-                  for (unsigned int d=0; d<dim; ++d)
-                    phi_theta_d[d] = Utilities::string_to_double (coordinates[d]);
-                  phi_theta_d[0] *= degree_to_radian;
-                  phi_theta_d[1] *= degree_to_radian;
-                  point = Utilities::Coordinates::ellipsoidal_to_cartesian_coordinates<dim>(phi_theta_d, semi_major_axis_a, eccentricity);
-                  evaluation_points.push_back (point);
-                  ellipsoidal_evaluation_points.push_back(phi_theta_d);
-                }
+               {
+                 const double semi_major_axis_a = 6378137.0;
+                 const double eccentricity = 8.1819190842622e-2;
+                 const double degree_to_radian = numbers::PI/180.;
+                 std_cxx11::array<double,dim> wcoord;
+                 for (unsigned int d=0; d<dim; ++d)
+                 wcoord[d] = Utilities::string_to_double (coordinates[d]);
+                 wcoord[0] *= degree_to_radian;
+                 wcoord[1] *= degree_to_radian;
+                 const Point<dim> phi_theta_d = Point<dim>(wcoord[0], wcoord[1], -wcoord[2]);
+                 point = Utilities::Coordinates::ellipsoidal_to_cartesian_coordinates<dim>(phi_theta_d, semi_major_axis_a, eccentricity);
+                 std_cxx11::array<double,dim> w      = Utilities::Coordinates::WGS84_coordinates(point);
+
+                 evaluation_points.push_back (point);
+                 ellipsoidal_evaluation_points.push_back(wcoord);
+               }
               else if (coordinate_system ==  Utilities::Coordinates::CoordinateSystem::spherical)
                 {
                   const double degree_to_radian = numbers::PI/180.;

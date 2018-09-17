@@ -128,6 +128,7 @@ namespace aspect
         double min_visc;
         double max_visc;
         double C_OH;
+        double reference_compressibility;
 
         enum averaging_scheme
         {
@@ -135,7 +136,7 @@ namespace aspect
           arithmetic,
           geometric,
           maximum_composition
-        } viscosity_averaging;
+        } viscosity_averaging, density_averaging;
 
         /**
          * The thermal conductivity.
@@ -160,6 +161,7 @@ namespace aspect
          * Pointer to the material model used as the base model
          */
         std_cxx11::shared_ptr<MaterialModel::Interface<dim> > base_model;
+
     };
 
   }

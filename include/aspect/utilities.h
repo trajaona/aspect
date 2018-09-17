@@ -157,7 +157,7 @@ namespace aspect
        */
       template <int dim>
       Point<dim>
-      ellipsoidal_to_cartesian_coordinates(const std_cxx11::array<double,dim> &phi_theta_d,
+      ellipsoidal_to_cartesian_coordinates(const Point<dim> &phi_theta_d,
                                            const double &semi_major_axis_a,
                                            const double &eccentricity);
 
@@ -1051,34 +1051,13 @@ namespace aspect
      */
     std::vector<unsigned int>
     get_sorted_indexes (const std::vector<double> &v);
+    
+    
+    double linear_interpolation(std::vector<double> &xData,
+    		                std::vector<double> &yData,
+			        double x, 
+                                bool extrapolate );
 
-    template <int dim>
-    class Eigen
-    {
-          public:
-
-          Eigen (SymmetricTensor<2,dim> &A);
-
-          void solve();
-
-          Tensor<2, dim> eigenvalue();
-
-          Tensor<2,dim> eigenvector();
-
-          std::pair<std::pair<unsigned int , unsigned int>, double>
-		  max_of_diagonal(Tensor<2,dim> &M,
-				          std::pair<unsigned int , unsigned int> &index, double &max_diag);
-
-           void
-			rotate (Tensor<2, dim> &M,
-					std::pair<unsigned int, unsigned int> &indexes,
-					Tensor<2, dim> &eigvec);
-
-          private:
-           Tensor<2, dim> eigval;
-           Tensor<2, dim> eigvec;
-
-      };
 
   }
 }

@@ -71,9 +71,10 @@ namespace aspect
     double
     AdiabaticBoundary<dim>::initial_temperature (const Point<dim> &position) const
     {
-      std_cxx11::array<double,dim> wcoord      = Utilities::Coordinates::WGS84_coordinates(position);
+      std_cxx11::array<double,dim> coord;
+      coord      = Utilities::Coordinates::WGS84_coordinates(position);
       const double depth                       = this->get_geometry_model().depth(position);
-      const double isotherm_depth              = get_isotherm_depth(wcoord[2], wcoord[1]);
+      const double isotherm_depth              = get_isotherm_depth(coord[2], coord[1]);
       if (depth > isotherm_depth)
         return isotherm_temperature + (depth - isotherm_depth) * temperature_gradient;
       else
@@ -129,10 +130,10 @@ namespace aspect
       }
       prm.leave_subsection();
 
-      AssertThrow ((dynamic_cast<const GeometryModel::EllipsoidalChunk<dim>*>
-                    (&this->get_geometry_model()) != 0),
-                   ExcMessage ("This initial condition can only be used if the geometry "
-                               "is an ellipsoidal chunk."));
+      //AssertThrow ((dynamic_cast<const GeometryModel::EllipsoidalChunk<dim>*>
+       //             (&this->get_geometry_model()) != 0),
+       //            ExcMessage ("This initial condition can only be used if the geometry "
+       //                        "is an ellipsoidal chunk."));
 
       const std::string filename = data_directory+isotherm_file_name;
 

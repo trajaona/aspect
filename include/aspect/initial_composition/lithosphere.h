@@ -79,6 +79,7 @@ namespace aspect
 
         double  LAB_isotherm;
         double  moho;
+        double fault_width;
     };
   }
 }
