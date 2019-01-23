@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?fileVersion 4.0.0?>
+<cproject>
+	<storageModule moduleId="org.eclipse.cdt.core.settings">
+		<cconfiguration id="org.eclipse.cdt.core.default.config.1">
+			<storageModule buildSystemId="org.eclipse.cdt.core.defaultConfigDataProvider" id="org.eclipse.cdt.core.default.config.1" moduleId="org.eclipse.cdt.core.settings" name="Configuration">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.MachO64" point="org.eclipse.cdt.core.BinaryParser">
+						<attribute key="c++filt" value="c++filt"/>
+					</extension>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.language.mapping">
+				<project-mappings/>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+			<storageModule moduleId="org.eclipse.cdt.core.pathentry">
+				<pathentry excluding="**/CMakeFiles/" kind="out" path=""/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/include/deal.II/bundled" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/view/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/mumps-5.1.1-3odpqz746fvaawxf6we7gegwjhnqwa6s/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/hypre-2.14.0-oegruwwqzmdopxmlsc5l23rja4zpqj5p/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/suite-sparse-5.2.0-kdi7e5mfk2e7z4k4l3qswoywpkupwl7e/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/superlu-dist-5.2.2-nvhhzjlsbf5vzox2cbtpnjtwf6pwxi43/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/hdf5-1.10.1-clwz66jwa6qs4fsmzrdjlznfyihjzhrq/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/parmetis-4.0.3-pp2qcaqlhz6743g3n3qol3gvogwga6hd/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/metis-5.1.0-q7s4esd3j3nvc7l5eur27r5qkdzsgmca/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/boost-1.67.0-x75yy6pqi47gx4j6kjruackl765d3kx5/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/matio-1.5.9-ie73fwdptzetmtlojdy65qs3ez2muupr/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/netcdf-4.4.1.1-u6i7k4wiji7zdgvbz5znoi3csffwssdf/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/zlib-1.2.11-jgaeca4brdhqqd3tk4vsy7etd7azclu5/include" kind="inc" path="" system="true"/>
+				<pathentry include="/Applications/deal.II-9.0.0.app/Contents/Resources/spack/view/include/oce" kind="inc" path="" system="true"/>
+				<pathentry include="/Users/trajaona/software/aspect/include" kind="inc" path="" system="true"/>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets">
+				<buildTargets>
+					<target name=": rebuild_cache" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>rebuild_cache</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name=": edit_cache" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>edit_cache</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name="[lib] edc_plugin" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>edc_plugin</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name="[lib] edc_plugin/fast" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>edc_plugin/fast</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name="Build" path="[Targets]/[lib] edc_plugin" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments>-C "/Users/trajaona/project/edc_plugins" </buildArguments>
+						<buildTarget>edc_plugin</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name="Clean" path="[Targets]/[lib] edc_plugin" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/cmake-3.11.1-t5c5kjxtmcqrw3luyshq6zxhl3dpvfjj/bin/cmake</buildCommand>
+						<buildArguments>-E chdir "/Users/trajaona/project/edc_plugins" "/Applications/deal.II-9.0.0.app/Contents/Resources/spack/opt/spack/darwin-highsierra-x86_64/clang-9.1.0-apple/cmake-3.11.1-t5c5kjxtmcqrw3luyshq6zxhl3dpvfjj/bin/cmake" -P "CMakeFiles/edc_plugin.dir/cmake_clean.cmake"</buildArguments>
+						<buildTarget></buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name=": all" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>all</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+					<target name=": clean" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
+						<buildCommand>/usr/bin/make</buildCommand>
+						<buildArguments></buildArguments>
+						<buildTarget>clean</buildTarget>
+						<stopOnError>true</stopOnError>
+						<useDefaultCommand>false</useDefaultCommand>
+					</target>
+				</buildTargets>
+			</storageModule>
+			<storageModule moduleId="scannerConfiguration">
+				<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId="org.eclipse.cdt.make.core.GCCStandardMakePerProjectProfile"/>
+				<profile id="org.eclipse.cdt.make.core.GCCStandardMakePerProjectProfile">
+					<buildOutputProvider>
+						<openAction enabled="true" filePath=""/>
+						<parser enabled="true"/>
+					</buildOutputProvider>
+					<scannerInfoProvider id="specsFile">
+						<runAction arguments="-E -P -v -dD ${plugin_state_location}/${specs_file}" command="/opt/local/bin/gcc" useDefault="true"/>
+						<parser enabled="true"/>
+					</scannerInfoProvider>
+				</profile>
+				<profile id="org.eclipse.cdt.make.core.GCCStandardMakePerFileProfile">
+					<buildOutputProvider>
+						<openAction enabled="true" filePath=""/>
+						<parser enabled="true"/>
+					</buildOutputProvider>
+					<scannerInfoProvider id="makefileGenerator">
+						<runAction arguments="-f ${project_name}_scd.mk" command="/usr/bin/make" useDefault="true"/>
+						<parser enabled="true"/>
+					</scannerInfoProvider>
+				</profile>
+			</storageModule>
+		</cconfiguration>
+	</storageModule>
+	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+		<project id="edc_plugin.null.1" name="edc_plugin"/>
+	</storageModule>
+</cproject>
