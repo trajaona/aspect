@@ -198,7 +198,9 @@ namespace aspect
           diffusion,
           dislocation,
           composite
-        } viscous_flow_law;
+        };
+
+        std::vector<ViscosityScheme>  viscous_flow_laws;
 
         /**
          * Enumeration for selecting which type of yield mechanism to use.
@@ -207,8 +209,11 @@ namespace aspect
         enum YieldScheme
         {
           stress_limiter,
-          drucker_prager
-        } yield_mechanism;
+          drucker_prager,
+		  none
+        };
+
+        std::vector<YieldScheme> yield_mechanisms;
 
         double average_value (const std::vector<double> &volume_fractions,
                               const std::vector<double> &parameter_values,
@@ -220,8 +225,8 @@ namespace aspect
                                           const double &temperature,
                                           const std::vector<double> &composition,
                                           const SymmetricTensor<2,dim> &strain_rate,
-                                          const ViscosityScheme &viscous_type,
-                                          const YieldScheme &yield_type) const;
+                                          const std::vector<ViscosityScheme> &viscous_types,
+                                          const std::vector<YieldScheme> &yield_types) const;
 
         /**
          * A function that computes the strain weakened values
@@ -302,6 +307,11 @@ namespace aspect
         bool use_viscous_strain_weakening;
 
         bool use_finite_strain_tensor;
+
+        /*
+         * Whether to use absolute density field for the crust.
+         */
+        bool use_density_field;
 
         /**
          * The start of the strain interval (plastic or total strain)

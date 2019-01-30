@@ -132,8 +132,8 @@ namespace aspect
                                       const double &temperature,
                                       const std::vector<double> &composition,
                                       const SymmetricTensor<2,dim> &strain_rate,
-                                      const ViscosityScheme &viscous_type,
-                                      const YieldScheme &yield_type) const
+                                      const std::vector<ViscosityScheme> &viscous_types,
+                                      const std::vector<YieldScheme> &yield_types) const
     {
       // This function calculates viscosities assuming that all the compositional fields
       // experience the same strain rate (isostrain).
@@ -183,7 +183,7 @@ namespace aspect
 
           // Select what form of viscosity to use (diffusion, dislocation or composite)
           double viscosity_pre_yield = 0.0;
-          switch (viscous_type)
+          switch (viscous_types[j])
             {
               case diffusion:
               {
@@ -288,7 +288,7 @@ namespace aspect
 
           // Select if yield viscosity is based on Drucker Prager or stress limiter rheology
           double viscosity_yield;
-          switch (yield_type)
+          switch (yield_types[j])
             {
               case stress_limiter:
               {
@@ -299,6 +299,11 @@ namespace aspect
               {
                 viscosity_yield = viscosity_drucker_prager;
                 break;
+              }
+              case none:
+              {
+            	  viscosity_yield = viscosity_pre_yield;
+            	  break;
               }
               default:
               {
@@ -440,7 +445,7 @@ namespace aspect
                 calculate_isostrain_viscosities(volume_fractions, in.pressure[i],
                                                 in.temperature[i], in.composition[i],
                                                 strain_rate_difference,
-                                                viscous_flow_law,yield_mechanism).first;
+                                                viscous_flow_laws,yield_mechanisms).first;
 
               // For each composition of the independent component, compute the derivative.
               for (unsigned int composition_index = 0; composition_index < eta_component.size(); ++composition_index)
@@ -465,7 +470,7 @@ namespace aspect
           const std::vector<double> viscosity_difference =
             calculate_isostrain_viscosities(volume_fractions, pressure_difference,
                                             in.temperature[i], in.composition[i], in.strain_rate[i],
-                                            viscous_flow_law, yield_mechanism).first;
+                                            viscous_flow_laws, yield_mechanisms).first;
 
 
           for (unsigned int composition_index = 0; composition_index < viscosity_difference.size(); ++composition_index)
@@ -568,6 +573,7 @@ namespace aspect
     {
       // Store which components to exclude during volume fraction computation.
       ComponentMask composition_mask(this->n_compositional_fields(),true);
+
       if (use_strain_weakening == true)
         {
           if (use_plastic_strain_weakening)
@@ -586,7 +592,12 @@ namespace aspect
                 composition_mask.set(i,false);
             }
         }
-
+      if (use_density_field)
+      {
+    	  composition_mask.set(this->introspection().compositional_index_for_name("upper_crust_density"),false);
+    	  composition_mask.set(this->introspection().compositional_index_for_name("middle_crust_density"),false);
+    	  composition_mask.set(this->introspection().compositional_index_for_name("lower_crust_density"),false);
+      }
       return composition_mask;
     }
 
@@ -617,6 +628,21 @@ namespace aspect
               // these compositions as volume fractions, but the error introduced should not be too bad.
               const double temperature_factor = (1.0 - thermal_expansivities[j] * (in.temperature[i] - reference_T));
 
+              std::vector<double>::const_iterator max_volume_fraction = std::max_element(volume_fractions.begin(),volume_fractions.end());
+
+              if (use_density_field==true)
+              {
+            	  if (this->introspection().compositional_index_for_name("upper_crust")+1 ==
+            		  std::distance(volume_fractions.begin(),max_volume_fraction))
+                  out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("upper_density_field")];
+            	  if (this->introspection().compositional_index_for_name("middle_crust")+1 ==
+            	            		  std::distance(volume_fractions.begin(),max_volume_fraction))
+                  out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("middle_density_field")];
+            	  if (this->introspection().compositional_index_for_name("lower_crust")+1 ==
+            	              	            		  std::distance(volume_fractions.begin(),max_volume_fraction))
+                  out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("lower_density_field")];
+              }
+              else
               out.densities[i] += volume_fractions[j] * densities[j] * temperature_factor;
               out.thermal_expansion_coefficients[i] += volume_fractions[j] * thermal_expansivities[j];
               out.specific_heat[i] += volume_fractions[j] * heat_capacities[j];
@@ -648,7 +674,7 @@ namespace aspect
               // TODO: This is only consistent with viscosity averaging if the arithmetic averaging
               // scheme is chosen. It would be useful to have a function to calculate isostress viscosities.
               const std::pair<std::vector<double>, std::vector<bool> > calculate_viscosities =
-                calculate_isostrain_viscosities(volume_fractions, in.pressure[i], in.temperature[i], in.composition[i], in.strain_rate[i],viscous_flow_law,yield_mechanism);
+                calculate_isostrain_viscosities(volume_fractions, in.pressure[i], in.temperature[i], in.composition[i], in.strain_rate[i],viscous_flow_laws,yield_mechanisms);
 
               // The isostrain condition implies that the viscosity averaging should be arithmetic (see above).
               // We have given the user freedom to apply alternative bounds, because in diffusion-dominated
@@ -785,7 +811,9 @@ namespace aspect
                              "List of thermal expansivities for background material and compositional fields, "
                              "for a total of N+1 values, where N is the number of compositional fields. "
                              "If only one value is given, then all use the same value.  Units: $1 / K$");
-
+          prm.declare_entry ("Use absolute density the crust", "false",
+                             Patterns::Bool (),
+                             "Use absolute density for the crust.  Units: None");
           // Strain weakening parameters
           prm.declare_entry ("Use strain weakening", "false",
                              Patterns::Bool (),
@@ -858,15 +886,15 @@ namespace aspect
                              "with different viscosities, we need to come up with an average "
                              "viscosity at that point.  Select a weighted harmonic, arithmetic, "
                              "geometric, or maximum composition.");
-          prm.declare_entry ("Viscous flow law", "composite",
-                             Patterns::Selection("diffusion|dislocation|composite"),
+          prm.declare_entry ("Viscous flow laws","",
+                             Patterns::MultipleSelection("diffusion|dislocation|composite"),
                              "Select what type of viscosity law to use between diffusion, "
                              "dislocation and composite options. Soon there will be an option "
                              "to select a specific flow law for each assigned composition ");
-          prm.declare_entry ("Yield mechanism", "drucker",
-                             Patterns::Selection("drucker|limiter"),
+          prm.declare_entry ("Yield mechanisms", "",
+                             Patterns::MultipleSelection("drucker|limiter|none"),
                              "Select what type of yield mechanism to use between Drucker Prager "
-                             "and stress limiter options.");
+                             "and stress limiter or none options.");
 
           // Diffusion creep parameters
           prm.declare_entry ("Prefactors for diffusion creep", "1.5e-15",
@@ -977,6 +1005,9 @@ namespace aspect
       // number of required compositional fields for full finite strain tensor
       const unsigned int s = Tensor<2,dim>::n_independent_components;
 
+      std::vector<std::string> list_of_viscous_laws;
+      std::vector<std::string> list_of_yield_mechanisms;
+
       prm.enter_subsection("Material model");
       {
         prm.enter_subsection ("Visco Plastic");
@@ -1071,6 +1102,21 @@ namespace aspect
                 }
             }
 
+          use_density_field = prm.get_double("Use absolute density the crust");
+          // The density field is used to inplement absolute density for the crust layers.
+          if (use_density_field)
+            {
+              AssertThrow(this->introspection().compositional_name_exists("upper_crust_density"),
+                          ExcMessage("Material model visco_plastic with crustal absolute density only works if there is a "
+                                     "compositional field called upper_crust_density."));
+              AssertThrow(this->introspection().compositional_name_exists("middle_crust_density"),
+                                      ExcMessage("Material model visco_plastic with crustal absolute density only works if there is a "
+                                                 "compositional field called middle_crust_density."));
+              AssertThrow(this->introspection().compositional_name_exists("lower_crust_density"),
+                                      ExcMessage("Material model visco_plastic with crustal absolute density only works if there is a "
+                                                 "compositional field called lower_crust_density."));
+            }
+
           start_plastic_strain_weakening_intervals = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Start plasticity strain weakening intervals"))),
                                                      n_fields,
                                                      "Start plasticity strain weakening intervals");
@@ -1093,8 +1139,8 @@ namespace aspect
                                                                                       n_fields,
                                                                                       "Friction strain weakening factors");
 
-          // Rheological parameters
-          if (prm.get ("Viscosity averaging scheme") == "harmonic")
+          // Rheological parameters	`
+          if (prm.get ("Viscosity av```eraging scheme") == "harmonic")
             viscosity_averaging = harmonic;
           else if (prm.get ("Viscosity averaging scheme") == "arithmetic")
             viscosity_averaging = arithmetic;
@@ -1105,23 +1151,31 @@ namespace aspect
           else
             AssertThrow(false, ExcMessage("Not a valid viscosity averaging scheme"));
 
+          list_of_viscous_laws = Utilities::split_string_list(prm.get("Viscous flow laws"));
+          list_of_yield_mechanisms = Utilities::split_string_list(prm.get("Yield mechanisms"));
+
+          for (unsigned int i = 0; i<n_fields; ++i)
+          {
           // Rheological parameters
-          if (prm.get ("Viscous flow law") == "composite")
-            viscous_flow_law = composite;
+          if (list_of_viscous_laws[i] == "composite")
+            viscous_flow_laws[i] = composite;
           else if (prm.get ("Viscous flow law") == "diffusion")
-            viscous_flow_law = diffusion;
+            viscous_flow_laws[i] = diffusion;
           else if (prm.get ("Viscous flow law") == "dislocation")
-            viscous_flow_law = dislocation;
+            viscous_flow_laws[i] = dislocation;
           else
             AssertThrow(false, ExcMessage("Not a valid viscous flow law"));
 
           // Rheological parameters
-          if (prm.get ("Yield mechanism") == "drucker")
-            yield_mechanism = drucker_prager;
-          else if (prm.get ("Yield mechanism") == "limiter")
-            yield_mechanism = stress_limiter;
+          if (list_of_yield_mechanisms[i] == "drucker")
+            yield_mechanisms[i] = drucker_prager;
+          else if (list_of_yield_mechanisms[i] == "limiter")
+            yield_mechanisms[i] = stress_limiter;
+          else if (list_of_yield_mechanisms[i] == "none")
+            yield_mechanisms[i]  = none;
           else
             AssertThrow(false, ExcMessage("Not a valid yield mechanism."));
+          }
 
           // Rheological parameters
           // Diffusion creep parameters (Stress exponents often but not always 1)
