@@ -634,13 +634,13 @@ namespace aspect
               {
             	  if (this->introspection().compositional_index_for_name("upper_crust")+1 ==
             		  std::distance(volume_fractions.begin(),max_volume_fraction))
-                  out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("upper_density_field")];
+                      out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("upper_density_field")];
             	  if (this->introspection().compositional_index_for_name("middle_crust")+1 ==
-            	            		  std::distance(volume_fractions.begin(),max_volume_fraction))
-                  out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("middle_density_field")];
+            	      std::distance(volume_fractions.begin(),max_volume_fraction))
+                      out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("middle_density_field")];
             	  if (this->introspection().compositional_index_for_name("lower_crust")+1 ==
-            	              	            		  std::distance(volume_fractions.begin(),max_volume_fraction))
-                  out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("lower_density_field")];
+            	      std::distance(volume_fractions.begin(),max_volume_fraction))
+                      out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("lower_density_field")];
               }
               else
               out.densities[i] += volume_fractions[j] * densities[j] * temperature_factor;

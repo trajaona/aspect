@@ -71,17 +71,40 @@ namespace aspect
       const double base_of_lower_crust              = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 1);
       const double base_of_lithosphere              = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 0);
 
+      const double upper_crust_density             = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 7);
+      const double middle_crust_density            = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 6);
+      const double lower_crust_density             = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 5);
+
+      // Indexes of lithospheric compositonal fields.
+      const unsigned int upper_crust_idx = this->introspection().compositional_index_for_name("upper_crust");
+      const unsigned int middle_crust_idx = this->introspection().compositional_index_for_name("middle_crust");
+      const unsigned int lower_crust_idx = this->introspection().compositional_index_for_name("lower_crust");
+      const unsigned int mantle_lithosphere_idx = this->introspection().compositional_index_for_name("mantle_lithosphere");
+
+      const unsigned int upper_crust_denisty_idx = this->introspection().compositional_index_for_name("upper_crust_density");
+      const unsigned int middle_crust_denisty_idx = this->introspection().compositional_index_for_name("middle_crust_density");
+      const unsigned int lower_crust_denisty_idx = this->introspection().compositional_index_for_name("lower_crust_density");
+
       //const std::vector<Point<2>> polygone_point_lists(boundaries_point_lists.size());
 
-      // Crustal composition
-      if (depth <= base_of_upper_crust &&  n_comp == 0) // uppper crust
+      // Lithospheric compositional fields
+      if (depth <= base_of_upper_crust &&  n_comp == upper_crust_idx) // uppper crust
         return 1.;
-      else if (depth > base_of_upper_crust && depth <= base_of_middle_crust && n_comp == 1) // middle_crust
+      else if (depth > base_of_upper_crust && depth <= base_of_middle_crust && n_comp == middle_crust_idx) // middle_crust
         return 1.;
-      else if (depth > base_of_middle_crust && depth <= base_of_lower_crust && n_comp == 2) // lower_crust
+      else if (depth > base_of_middle_crust && depth <= base_of_lower_crust && n_comp == lower_crust_idx) // lower_crust
         return 1.;
-      else if (depth > base_of_lower_crust && depth <= base_of_lithosphere && n_comp == 3)  // mantle lithosphere
+      else if (depth > base_of_lower_crust && depth <= base_of_lithosphere && n_comp == mantle_lithosphere_idx)  // mantle lithosphere
         return 1.;
+
+      // Density field compositional fields.
+      else if (depth <= base_of_upper_crust &&  n_comp == upper_crust_denisty_idx ) // uppper crust
+          return upper_crust_density;
+      else if (depth > base_of_upper_crust && depth <= base_of_middle_crust &&  n_comp == middle_crust_denisty_idx ) // uppper crust
+          return middle_crust_density;
+      else if (depth > base_of_middle_crust && depth <= base_of_lower_crust &&  n_comp == lower_crust_denisty_idx ) // uppper crust
+          return lower_crust_density;
+
      // else if (std::abs(Utilities::signed_distance_to_polygon<2>(boundaries_point_lists, wpoint)) < 0.5 && depth < base_of_lithosphere && n_comp == 4)
      //   return 1;
       else
