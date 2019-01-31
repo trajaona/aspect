@@ -210,10 +210,7 @@ namespace aspect
         {
           stress_limiter,
           drucker_prager,
-		  none
-        };
-
-        std::vector<YieldScheme> yield_mechanisms;
+        }yield_mechanism;
 
         double average_value (const std::vector<double> &volume_fractions,
                               const std::vector<double> &parameter_values,
@@ -226,7 +223,7 @@ namespace aspect
                                           const std::vector<double> &composition,
                                           const SymmetricTensor<2,dim> &strain_rate,
                                           const std::vector<ViscosityScheme> &viscous_types,
-                                          const std::vector<YieldScheme> &yield_types) const;
+                                          const YieldScheme &yield_type) const;
 
         /**
          * A function that computes the strain weakened values

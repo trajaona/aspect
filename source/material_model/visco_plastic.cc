@@ -133,7 +133,7 @@ namespace aspect
                                       const std::vector<double> &composition,
                                       const SymmetricTensor<2,dim> &strain_rate,
                                       const std::vector<ViscosityScheme> &viscous_types,
-                                      const std::vector<YieldScheme> &yield_types) const
+                                      const YieldScheme &yield_type) const
     {
       // This function calculates viscosities assuming that all the compositional fields
       // experience the same strain rate (isostrain).
@@ -288,7 +288,7 @@ namespace aspect
 
           // Select if yield viscosity is based on Drucker Prager or stress limiter rheology
           double viscosity_yield;
-          switch (yield_types[j])
+          switch (yield_type)
             {
               case stress_limiter:
               {
@@ -299,11 +299,6 @@ namespace aspect
               {
                 viscosity_yield = viscosity_drucker_prager;
                 break;
-              }
-              case none:
-              {
-            	  viscosity_yield = viscosity_pre_yield;
-            	  break;
               }
               default:
               {
@@ -445,7 +440,7 @@ namespace aspect
                 calculate_isostrain_viscosities(volume_fractions, in.pressure[i],
                                                 in.temperature[i], in.composition[i],
                                                 strain_rate_difference,
-                                                viscous_flow_laws,yield_mechanisms).first;
+                                                viscous_flow_laws,yield_mechanism).first;
 
               // For each composition of the independent component, compute the derivative.
               for (unsigned int composition_index = 0; composition_index < eta_component.size(); ++composition_index)
@@ -470,7 +465,7 @@ namespace aspect
           const std::vector<double> viscosity_difference =
             calculate_isostrain_viscosities(volume_fractions, pressure_difference,
                                             in.temperature[i], in.composition[i], in.strain_rate[i],
-                                            viscous_flow_laws, yield_mechanisms).first;
+                                            viscous_flow_laws, yield_mechanism).first;
 
 
           for (unsigned int composition_index = 0; composition_index < viscosity_difference.size(); ++composition_index)
@@ -674,7 +669,7 @@ namespace aspect
               // TODO: This is only consistent with viscosity averaging if the arithmetic averaging
               // scheme is chosen. It would be useful to have a function to calculate isostress viscosities.
               const std::pair<std::vector<double>, std::vector<bool> > calculate_viscosities =
-                calculate_isostrain_viscosities(volume_fractions, in.pressure[i], in.temperature[i], in.composition[i], in.strain_rate[i],viscous_flow_laws,yield_mechanisms);
+                calculate_isostrain_viscosities(volume_fractions, in.pressure[i], in.temperature[i], in.composition[i], in.strain_rate[i],viscous_flow_laws,yield_mechanism);
 
               // The isostrain condition implies that the viscosity averaging should be arithmetic (see above).
               // We have given the user freedom to apply alternative bounds, because in diffusion-dominated
@@ -891,8 +886,8 @@ namespace aspect
                              "Select what type of viscosity law to use between diffusion, "
                              "dislocation and composite options. Soon there will be an option "
                              "to select a specific flow law for each assigned composition ");
-          prm.declare_entry ("Yield mechanisms", "",
-                             Patterns::MultipleSelection("drucker|limiter|none"),
+          prm.declare_entry ("Yield mechanism", "drucker",
+                             Patterns::Selection("drucker|limiter|none"),
                              "Select what type of yield mechanism to use between Drucker Prager "
                              "and stress limiter or none options.");
 
@@ -1006,7 +1001,6 @@ namespace aspect
       const unsigned int s = Tensor<2,dim>::n_independent_components;
 
       std::vector<std::string> list_of_viscous_laws;
-      std::vector<std::string> list_of_yield_mechanisms;
 
       prm.enter_subsection("Material model");
       {
@@ -1152,7 +1146,6 @@ namespace aspect
             AssertThrow(false, ExcMessage("Not a valid viscosity averaging scheme"));
 
           list_of_viscous_laws = Utilities::split_string_list(prm.get("Viscous flow laws"));
-          list_of_yield_mechanisms = Utilities::split_string_list(prm.get("Yield mechanisms"));
 
           for (unsigned int i = 0; i<n_fields; ++i)
           {
@@ -1167,12 +1160,10 @@ namespace aspect
             AssertThrow(false, ExcMessage("Not a valid viscous flow law"));
 
           // Rheological parameters
-          if (list_of_yield_mechanisms[i] == "drucker")
-            yield_mechanisms[i] = drucker_prager;
-          else if (list_of_yield_mechanisms[i] == "limiter")
-            yield_mechanisms[i] = stress_limiter;
-          else if (list_of_yield_mechanisms[i] == "none")
-            yield_mechanisms[i]  = none;
+          if (prm.get ("Yield mechanism") == "drucker")
+            yield_mechanism = drucker_prager;
+          else if (prm.get ("Yield mechanism") == "limiter")
+            yield_mechanism = stress_limiter;
           else
             AssertThrow(false, ExcMessage("Not a valid yield mechanism."));
           }
