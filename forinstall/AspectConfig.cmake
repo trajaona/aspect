@@ -1,4 +1,4 @@
-# Copyright (C) 2014 - 2015 by the authors of the ASPECT code.
+# Copyright (C) 2014 - 2017 by the authors of the ASPECT code.
 #
 # This file is part of ASPECT.
 #
@@ -13,7 +13,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with ASPECT; see the file doc/COPYING.  If not see
+# along with ASPECT; see the file LICENSE.  If not see
 # <http://www.gnu.org/licenses/>.
 
 
@@ -22,10 +22,10 @@
 # compiled into a run-time loadable plugin for Aspect.
 
 
-FIND_PACKAGE(deal.II 8.5.0 QUIET REQUIRED HINTS /Applications/deal.II-8.5-brew.app/Contents/Resources)
-SET(Aspect_INCLUDE_DIRS "/Applications/deal.II-8.5-brew.app/Contents/Resources/brew/include")
-SET(Aspect_VERSION "2.0.0-pre")
-SET(Aspect_DIR "/Applications/deal.II-8.5-brew.app/Contents/Resources/brew/bin")
+FIND_PACKAGE(deal.II 8.5.0 QUIET REQUIRED HINTS /Applications/deal.II-9.0.0.app/Contents/Resources)
+SET(Aspect_INCLUDE_DIRS "/usr/local/include")
+SET(Aspect_VERSION "2.1.0-pre")
+SET(Aspect_DIR "/usr/local/bin")
 SET(ASPECT_USE_PETSC "OFF")
 # force our build type to the one that is used by ASPECT:
 SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING "select debug or release mode" FORCE)
@@ -44,6 +44,12 @@ MACRO(ASPECT_SETUP_PLUGIN _target)
     MESSAGE(STATUS "  with PETSC=ON")
     SET_PROPERTY(TARGET ${_target}
       APPEND PROPERTY COMPILE_DEFINITIONS ASPECT_USE_PETSC="1")
+  ENDIF() 
+
+  IF(ASPECT_WITH_PERPLEX)
+    MESSAGE(STATUS "  with PerpleX=ON")
+    SET_PROPERTY(TARGET ${_target}
+      APPEND PROPERTY COMPILE_DEFINITIONS ASPECT_WITH_PERPLEX="1")
   ENDIF()
 
   # export ASPECT_SOURCE_DIR as compile definition

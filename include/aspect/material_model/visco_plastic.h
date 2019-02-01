@@ -200,7 +200,7 @@ namespace aspect
           composite
         };
 
-        std::vector<ViscosityScheme>  viscous_flow_laws;
+        ViscosityScheme  viscous_flow_law;
 
         /**
          * Enumeration for selecting which type of yield mechanism to use.
@@ -209,7 +209,7 @@ namespace aspect
         enum YieldScheme
         {
           stress_limiter,
-          drucker_prager,
+          drucker_prager
         }yield_mechanism;
 
         double average_value (const std::vector<double> &volume_fractions,
@@ -222,7 +222,7 @@ namespace aspect
                                           const double &temperature,
                                           const std::vector<double> &composition,
                                           const SymmetricTensor<2,dim> &strain_rate,
-                                          const std::vector<ViscosityScheme> &viscous_types,
+                                          const ViscosityScheme &viscous_type,
                                           const YieldScheme &yield_type) const;
 
         /**
