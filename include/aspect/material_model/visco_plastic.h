@@ -175,19 +175,8 @@ namespace aspect
 
         /**
          * Enumeration for selecting which viscosity averaging scheme to use.
-         * Select between harmonic, arithmetic, geometric, and
-         * maximum_composition. The max composition scheme simply uses the
-         * viscosity of whichever field has the highest volume fraction.
-         * For each quadrature point, averaging is conducted over the
-         * N compositional fields plus the background field.
          */
-        enum averaging_scheme
-        {
-          harmonic,
-          arithmetic,
-          geometric,
-          maximum_composition
-        } viscosity_averaging;
+        MaterialUtilities::CompositionalAveragingOperation viscosity_averaging;
 
         /**
          * Enumeration for selecting which type of viscous flow law to use.
@@ -200,8 +189,6 @@ namespace aspect
           composite
         } viscous_flow_law;
 
-        std::vector<ViscosityScheme> viscous_flow_laws;
-
         /**
          * Enumeration for selecting which type of yield mechanism to use.
          * Select between Drucker Prager and stress limiter.
@@ -210,11 +197,8 @@ namespace aspect
         {
           stress_limiter,
           drucker_prager
-        }yield_mechanism;
+        } yield_mechanism;
 
-        double average_value (const std::vector<double> &volume_fractions,
-                              const std::vector<double> &parameter_values,
-                              const averaging_scheme &average_type) const;
 
         std::pair<std::vector<double>, std::vector<bool> >
         calculate_isostrain_viscosities ( const std::vector<double> &volume_fractions,
@@ -222,7 +206,7 @@ namespace aspect
                                           const double &temperature,
                                           const std::vector<double> &composition,
                                           const SymmetricTensor<2,dim> &strain_rate,
-                                          const std::vector<ViscosityScheme> &viscous_type,
+                                          const ViscosityScheme &viscous_type,
                                           const YieldScheme &yield_type) const;
 
         /**
@@ -235,7 +219,7 @@ namespace aspect
                                       const unsigned int j ) const;
 
         /**
-         * A function that computes the strain eakened values
+         * A function that computes the strain weakened values
          * of the diffusion and dislocation prefactors for a given
          * compositional field.
          */
@@ -304,8 +288,9 @@ namespace aspect
         bool use_viscous_strain_weakening;
 
         bool use_finite_strain_tensor;
+ 
 
-        /*
+        /**
          * Whether to use absolute density field for the crust.
          */
         bool use_density_field;
