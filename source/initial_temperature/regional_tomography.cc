@@ -175,9 +175,10 @@ namespace aspect
        //  Calculate the temperature at the LAB which is the isoherm temperature added with the temperature perturbation.
          double lab_temperature = lab_isotherm_temperature + ascii_grid_vs(lab_position) * vs_to_density * (-1./thermal_alpha);
          if (depth > isotherm_depth)
-            return  lab_temperature + (depth - isotherm_depth) * 0.0003 + temperature_perturbation;
-         else
-            return  lithosphere_geotherm (depth, isotherm_depth, upper_crust_bottom, middle_crust_bottom, lower_crust_bottom, lab_temperature);
+  //          return  lab_temperature + (depth - isotherm_depth) * 0.0003 + temperature_perturbation;
+             return ascii_grid_vs(position);   
+    	 else
+             return  lithosphere_geotherm (depth, isotherm_depth, upper_crust_bottom, middle_crust_bottom, lower_crust_bottom, lab_temperature);
     }
 
     template <int dim>
