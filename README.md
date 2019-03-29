@@ -2,7 +2,6 @@ ASPECT - Advanced Solver for Problems in Earth's ConvecTion
 ===========================================================
 [![License GPL2:](https://img.shields.io/aur/license/yaourt.svg)](https://github.com/geodynamics/aspect/blob/master/LICENSE)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1297145.svg)](https://doi.org/10.5281/zenodo.1297145)
-[![Build Status](https://jenkins.tjhei.info/job/aspect/job/master/badge/icon)](https://jenkins.tjhei.info/job/aspect/job/master/)
 
 
 About
@@ -62,14 +61,14 @@ For more information see:
  - The official website at https://aspect.geodynamics.org
  - The current [manual](http://www.math.clemson.edu/~heister/manual.pdf)
  - [How to cite ASPECT](https://aspect.geodynamics.org/cite.html)
- - For questions on the source code of ASPECT, portability, installation, etc., use the [aspect-devel](http://lists.geodynamics.org/cgi-bin/mailman/listinfo/aspect-devel) mailing list. This mailing list is where the ASPECT users and developers all hang out.
+ - For questions on the source code of ASPECT, portability, installation, new or existing features, etc., use the [ASPECT forum](https://community.geodynamics.org/c/aspect). This forum is where the ASPECT users and developers all hang out. Archived discussions from the inactive aspect-devel mailing list can be downloaded at [aspect-devel archives](http://lists.geodynamics.org/pipermail/aspect-devel).
  - ASPECT is primarily based on the deal.II library. If you have particular questions about deal.II, contact the [deal.II discussion groups](https://www.dealii.org/mail.html).
  - In case of more general questions about mantle convection, you can contact the [CIG mantle convection mailing lists](http://lists.geodynamics.org/cgi-bin/mailman/listinfo/cig-MC).
  - ASPECT is being developed by a large, collaborative, and inclusive community. It is currently maintained by the following people:
      - Wolfgang Bangerth: bangerth@math.colostate.edu
      - Juliane Dannberg: judannberg@gmail.com
      - Rene Gassmoeller: rene.gassmoeller@mailbox.org
-     - Timo Heister: heister@clemson.edu
+     - Timo Heister: heister@sci.utah.edu
 
  - The following people have significantly contributed and furthered ASPECT's goals and are therefore Principal Developers:
 

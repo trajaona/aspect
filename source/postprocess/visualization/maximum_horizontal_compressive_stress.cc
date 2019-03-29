@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2016 - 2017 by the authors of the ASPECT code.
+  Copyright (C) 2016 - 2019 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -200,7 +200,7 @@ namespace aspect
       UpdateFlags
       MaximumHorizontalCompressiveStress<dim>::get_needed_update_flags () const
       {
-        return update_gradients | update_values | update_q_points;
+        return update_gradients | update_values | update_quadrature_points;
       }
 
     }
@@ -286,7 +286,7 @@ namespace aspect
                                                   "a given location simply because the hydrostatic pressure "
                                                   "is the largest component of the overall stress. On the other "
                                                   "hand, the hydrostatic pressure does not determine any "
-                                                  "principle direction because it is an isotropic, anti-compressive "
+                                                  "principal direction because it is an isotropic, anti-compressive "
                                                   "force. As a consequence, there are often points in simulations "
                                                   "(e.g., at the center of convection rolls) where the stress has "
                                                   "no dominant horizontal direction, and the algorithm above will "

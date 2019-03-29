@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2019 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -32,6 +32,11 @@
 
 #include <list>
 
+#ifdef DEBUG
+#ifdef ASPECT_USE_FP_EXCEPTIONS
+#include <fenv.h>
+#endif
+#endif
 
 namespace aspect
 {
@@ -63,44 +68,6 @@ namespace aspect
         specific_heat (uninitialized),
         thermal_conductivity (uninitialized)
       {}
-    }
-
-
-
-    std::vector<double>
-    compute_volume_fractions(const std::vector<double> &compositional_fields,
-                             const ComponentMask &field_mask)
-    {
-      std::vector<double> volume_fractions(compositional_fields.size()+1);
-
-      // Clip the compositional fields so they are between zero and one,
-      // and sum the compositional fields for normalization purposes.
-      double sum_composition = 0.0;
-      std::vector<double> x_comp = compositional_fields;
-      for (unsigned int i=0; i < x_comp.size(); ++i)
-        if (field_mask[i] == true)
-          {
-            x_comp[i] = std::min(std::max(x_comp[i], 0.0), 1.0);
-            sum_composition += x_comp[i];
-          }
-
-      // Compute background material fraction
-      if (sum_composition >= 1.0)
-        volume_fractions[0] = 0.0;
-      else
-        volume_fractions[0] = 1.0 - sum_composition;
-
-      // Compute and possibly normalize volume fractions
-      for (unsigned int i=0; i < x_comp.size(); ++i)
-        if (field_mask[i] == true)
-          {
-            if (sum_composition >= 1.0)
-              volume_fractions[i+1] = x_comp[i]/sum_composition;
-            else
-              volume_fractions[i+1] = x_comp[i];
-          }
-
-      return volume_fractions;
     }
 
 
@@ -493,6 +460,14 @@ namespace aspect
         if (values_out.size() == 0)
           return;
 
+#ifdef DEBUG
+#ifdef ASPECT_USE_FP_EXCEPTIONS
+        // disable floating point exceptions while averaging. Errors will be reported
+        // as soon as somebody will try to use the averaged values later.
+        fedisableexcept(FE_DIVBYZERO|FE_INVALID);
+#endif
+#endif
+
         const unsigned int N = values_out.size();
         const unsigned int P = expansion_matrix.n();
         Assert ((P==0) || (/*dim=2*/ P==4) || (/*dim=3*/ P==8),
@@ -640,6 +615,13 @@ namespace aspect
                            ExcMessage ("This averaging operation is not implemented."));
             }
           }
+
+#ifdef DEBUG
+#ifdef ASPECT_USE_FP_EXCEPTIONS
+        // enable floating point exceptions again:
+        feenableexcept(FE_DIVBYZERO|FE_INVALID);
+#endif
+#endif
       }
 
 
@@ -854,6 +836,16 @@ namespace aspect
 
         return names;
       }
+
+
+
+      std::vector<std::string> make_prescribed_field_output_names(const unsigned int n_comp)
+      {
+        std::vector<std::string> names;
+        for (unsigned int c=0; c<n_comp; ++c)
+          names.push_back("prescribed_field_output_C" + Utilities::int_to_string(c));
+        return names;
+      }
     }
 
 
@@ -881,6 +873,32 @@ namespace aspect
         cth_reaction_rates[q] = reaction_rates[q][idx];
 
       return cth_reaction_rates;
+    }
+
+
+
+    template<int dim>
+    PrescribedFieldOutputs<dim>::PrescribedFieldOutputs (const unsigned int n_points,
+                                                         const unsigned int n_comp)
+      :
+      NamedAdditionalMaterialOutputs<dim>(make_prescribed_field_output_names(n_comp)),
+      prescribed_field_outputs(n_points, std::vector<double>(n_comp, std::numeric_limits<double>::quiet_NaN()))
+    {}
+
+
+
+    template<int dim>
+    std::vector<double>
+    PrescribedFieldOutputs<dim>::get_nth_output(const unsigned int idx) const
+    {
+      // we have to extract the prescribed field outputs for one particular compositional
+      // field, but the vector in the material model outputs is sorted so that the
+      // number of evaluation points (and not the compositional fields) is the outer
+      // vector
+      std::vector<double> nth_prescribed_field_output(prescribed_field_outputs.size());
+      for (unsigned int q=0; q<prescribed_field_outputs.size(); ++q)
+        nth_prescribed_field_output[q] = prescribed_field_outputs[q][idx];
+      return nth_prescribed_field_output;
     }
   }
 }
@@ -945,6 +963,8 @@ namespace aspect
   template class SeismicAdditionalOutputs<dim>; \
   \
   template class ReactionRateOutputs<dim>; \
+  \
+  template class PrescribedFieldOutputs<dim>; \
   \
   namespace MaterialAveraging \
   { \

@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2019 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -23,6 +23,7 @@
 #include <aspect/global.h>
 #include <aspect/utilities.h>
 #include <aspect/melt.h>
+#include <aspect/volume_of_fluid/handler.h>
 #include <aspect/newton.h>
 #include <aspect/free_surface.h>
 
@@ -143,6 +144,22 @@ namespace aspect
                        "Units: Years or seconds, depending on the ``Use years "
                        "in output instead of seconds'' parameter.");
 
+    prm.declare_entry ("Maximum first time step",
+                       /* boost::lexical_cast<std::string>(std::numeric_limits<double>::max() /
+                                                           year_in_seconds) = */ "5.69e+300",
+                       Patterns::Double (0),
+                       "Set a maximum time step size for only the first timestep. Generally the time step "
+                       "based on the CFL number should be sufficient, but for complicated models "
+                       "or benchmarking it may be useful to limit the first time step to some value, "
+                       "especially when using the free surface, which needs to settle to prevent "
+                       "instabilities. This should in that case be combined with a value set for "
+                       "``Maximum relative increase in time step''. "
+                       "The default value is a value so that when converted from years into seconds "
+                       "it equals the largest number representable by a floating "
+                       "point number, implying an unlimited time step. "
+                       "Units: Years or seconds, depending on the ``Use years "
+                       "in output instead of seconds'' parameter.");
+
     prm.declare_entry ("Maximum relative increase in time step", boost::lexical_cast<std::string>(std::numeric_limits<int>::max()),
                        Patterns::Double (0),
                        "Set a percentage with which the the time step is limited to increase. Generally the "
@@ -166,7 +183,7 @@ namespace aspect
                                                "single Advection, iterated Stokes|no Advection, iterated Stokes|"
                                                "iterated Advection and Newton Stokes|single Advection, no Stokes|"
                                                "IMPES|iterated IMPES|iterated Stokes|Newton Stokes|Stokes only|Advection only|"
-                                               "first timestep only, single Stokes";
+                                               "first timestep only, single Stokes|no Advection, no Stokes";
 
     prm.declare_entry ("Nonlinear solver scheme", "single Advection, single Stokes",
                        Patterns::Selection (allowed_solver_schemes),
@@ -355,13 +372,13 @@ namespace aspect
                            "not converge and return an error message pointing out that the user didn't allow "
                            "a sufficiently large number of iterations for the iterative solver to converge.");
 
-        prm.declare_entry("GMRES solver restart length", "50",
-                          Patterns::Integer(1),
-                          "This is the number of iterations that define the GMRES solver restart length. "
-                          "Increasing this parameter helps with convergence issues arising from high localized "
-                          "viscosity jumps in the domain. Be aware that increasing this number increases the "
-                          "memory usage of the Stokes solver, and makes individual Stokes iterations more "
-                          "expensive.");
+        prm.declare_entry ("GMRES solver restart length", "50",
+                           Patterns::Integer(1),
+                           "This is the number of iterations that define the GMRES solver restart length. "
+                           "Increasing this parameter helps with convergence issues arising from high localized "
+                           "viscosity jumps in the domain. Be aware that increasing this number increases the "
+                           "memory usage of the Stokes solver, and makes individual Stokes iterations more "
+                           "expensive.");
 
         prm.declare_entry ("Linear solver A block tolerance", "1e-2",
                            Patterns::Double(0,1),
@@ -468,6 +485,18 @@ namespace aspect
                            "this criterion and the ``Reaction time step'', whichever yields the "
                            "smaller time step. "
                            "Units: none.");
+      }
+      prm.leave_subsection ();
+      prm.enter_subsection ("Diffusion solver parameters");
+      {
+        prm.declare_entry ("Diffusion length scale", "1.e4",
+                           Patterns::Double (0),
+                           "Set a length scale for the diffusion of compositional fields if the "
+                           "``prescribed field with diffusion'' method is selected for a field. "
+                           "More precisely, this length scale represents the square root of the "
+                           "product of diffusivity and time in the diffusion equation, and controls "
+                           "the distance over which features are diffused."
+                           "Units: m.");
       }
       prm.leave_subsection ();
     }
@@ -766,6 +795,9 @@ namespace aspect
                          "pressure, respectively (unless the `Use locally conservative "
                          "discretization' parameter is set, which modifies the pressure "
                          "element). "
+                         "\n\n"
+                         "Be careful if you choose 1 as the degree. The resulting element "
+                         "is not stable and it may lead to artifacts in the solution. "
                          "Units: None.");
       prm.declare_entry ("Temperature polynomial degree", "2",
                          Patterns::Integer (1),
@@ -776,12 +808,16 @@ namespace aspect
                          "discontinuous field. "
                          "Units: None.");
       prm.declare_entry ("Composition polynomial degree", "2",
-                         Patterns::Integer (1),
+                         Patterns::Integer (0),
                          "The polynomial degree to use for the composition variable(s). "
                          "As an example, a value of 2 for this parameter will yield "
                          "either the element $Q_2$ or $DGQ_2$ for the compositional "
                          "field(s), depending on whether we use continuous or "
                          "discontinuous field(s). "
+                         "\n\n"
+                         "For continuous elements, the value needs to be 1 or larger "
+                         "as $Q_1$ is the lowest order element, while $DGQ_0$ is a "
+                         "valid choice. "
                          "Units: None.");
       prm.declare_entry ("Use locally conservative discretization", "false",
                          Patterns::Bool (),
@@ -965,7 +1001,7 @@ namespace aspect
                          Patterns::List(Patterns::Anything()),
                          "A user-defined name for each of the compositional fields requested.");
       prm.declare_entry ("Compositional field methods", "",
-                         Patterns::List (Patterns::Selection("field|particles|static|melt field")),
+                         Patterns::List (Patterns::Selection("field|particles|volume of fluid|static|melt field|prescribed field|prescribed field with diffusion")),
                          "A comma separated list denoting the solution method of each "
                          "compositional field. Each entry of the list must be "
                          "one of the currently implemented field types: "
@@ -990,6 +1026,13 @@ namespace aspect
                          "See Section~\\ref{sec:particles} for more information about "
                          "how particles behave."
                          "\n"
+                         "\\item ``volume of fluid``: If a compositional field "
+                         "is marked with this method, then its values are "
+                         "obtained in each timestep by reconstructing a "
+                         "polynomial finite element approximation on each cell "
+                         "from a volume of fluid interface tracking method, "
+                         "which is used to compute the advection updates."
+                         "\n"
                          "\\item ``static'': If a compositional field is marked "
                          "this way, then it does not evolve at all. Its values are "
                          "simply set to the initial conditions, and will then "
@@ -1004,6 +1047,24 @@ namespace aspect
                          "advected with the melt velocity instead of the solid velocity. "
                          "This method can only be chosen if melt transport is active in the "
                          "model."
+                         "\n"
+                         "\\item ``prescribed field'': The value of these fields is determined "
+                         "in each time step from the material model. If a compositional field is "
+                         "marked with this method, then the value of a specific additional material "
+                         "model output, called the `PrescribedFieldOutputs' is interpolated "
+                         "onto the field. This field does not change otherwise, it is not "
+                         "advected with the flow."
+                         "\n"
+                         "\\item ``prescribed field with diffusion'': If a compositional field is "
+                         "marked this way, the value of a specific additional material model output, "
+                         "called the `PrescribedFieldOutputs' is interpolated onto the field, as in "
+                         "the ``prescribed field'' method. Afterwards, the field is diffused based on "
+                         "a solver parameter, the diffusion length scale, smoothing the field. "
+                         "Specifically, the field is updated by solving the equation "
+                         "$(I-l^2 \\Delta) C_\\text{smoothed} = C_\\text{prescribed}$, "
+                         "where $l$ is the diffusion length scale. Note that this means that the amount "
+                         "of diffusion is independent of the time step size, and that the field is not "
+                         "advected with the flow."
                          "\\end{itemize}");
       prm.declare_entry ("Mapped particle properties", "",
                          Patterns::Map (Patterns::Anything(),
@@ -1062,6 +1123,17 @@ namespace aspect
     }
     prm.leave_subsection ();
 
+    prm.enter_subsection ("Volume of Fluid");
+    {
+      prm.declare_entry ("Enable interface tracking", "false",
+                         Patterns::Bool (),
+                         "When set to true, Volume of Fluid interface tracking will be used");
+    }
+    prm.leave_subsection ();
+
+    // declare the VolumeOfFluid parameters
+    VolumeOfFluidHandler<dim>::declare_parameters(prm);
+
     // also declare the parameters that the FreeSurfaceHandler needs
     FreeSurfaceHandler<dim>::declare_parameters (prm);
 
@@ -1096,6 +1168,9 @@ namespace aspect
       maximum_time_step *= year_in_seconds;
 
     maximum_relative_increase_time_step = prm.get_double("Maximum relative increase in time step") * 0.01;
+    maximum_first_time_step = prm.get_double("Maximum first time step");
+    if (convert_to_years == true)
+      maximum_first_time_step *= year_in_seconds;
 
     {
       const std::string solver_scheme = prm.get ("Nonlinear solver scheme");
@@ -1113,6 +1188,8 @@ namespace aspect
         nonlinear_solver = NonlinearSolver::single_Advection_no_Stokes;
       else if (solver_scheme == "first timestep only, single Stokes")
         nonlinear_solver = NonlinearSolver::first_timestep_only_single_Stokes;
+      else if (solver_scheme == "no Advection, no Stokes")
+        nonlinear_solver = NonlinearSolver::no_Advection_no_Stokes;
       else
         AssertThrow (false, ExcNotImplemented());
     }
@@ -1150,6 +1227,11 @@ namespace aspect
         if (convert_to_years == true)
           reaction_time_step *= year_in_seconds;
         reaction_steps_per_advection_step = prm.get_integer ("Reaction time steps per advection step");
+      }
+      prm.leave_subsection ();
+      prm.enter_subsection ("Diffusion solver parameters");
+      {
+        diffusion_length_scale = prm.get_double("Diffusion length scale");
       }
       prm.leave_subsection ();
     }
@@ -1378,6 +1460,11 @@ namespace aspect
         = prm.get_bool("Use discontinuous temperature discretization");
       use_discontinuous_composition_discretization
         = prm.get_bool("Use discontinuous composition discretization");
+
+      Assert(use_discontinuous_composition_discretization == true || composition_degree > 0,
+             ExcMessage("Using a composition polynomial degree of 0 (cell-wise constant composition) "
+                        "is only supported if a discontinuous composition discretization is selected."));
+
       prm.enter_subsection ("Stabilization parameters");
       {
         use_artificial_viscosity_smoothing  = prm.get_bool ("Use artificial viscosity smoothing");
@@ -1480,8 +1567,7 @@ namespace aspect
 
       // global_composition_max_preset.size() and global_composition_min_preset.size() are obtained early than
       // n_compositional_fields. Therefore, we can only check if their sizes are the same here.
-      if (use_limiter_for_discontinuous_temperature_solution
-          || use_limiter_for_discontinuous_composition_solution)
+      if (use_limiter_for_discontinuous_composition_solution)
         AssertThrow ((global_composition_max_preset.size() == (n_compositional_fields)
                       && global_composition_min_preset.size() == (n_compositional_fields)),
                      ExcMessage ("The number of multiple 'Global composition maximum' values "
@@ -1519,19 +1605,39 @@ namespace aspect
             compositional_field_methods[i] = AdvectionFieldMethod::fem_field;
           else if (x_compositional_field_methods[i] == "particles")
             compositional_field_methods[i] = AdvectionFieldMethod::particles;
+          else if (x_compositional_field_methods[i] == "volume of fluid")
+            compositional_field_methods[i] = AdvectionFieldMethod::volume_of_fluid;
           else if (x_compositional_field_methods[i] == "static")
             compositional_field_methods[i] = AdvectionFieldMethod::static_field;
           else if (x_compositional_field_methods[i] == "melt field")
             compositional_field_methods[i] = AdvectionFieldMethod::fem_melt_field;
+          else if (x_compositional_field_methods[i] == "prescribed field")
+            compositional_field_methods[i] = AdvectionFieldMethod::prescribed_field;
+          else if (x_compositional_field_methods[i] == "prescribed field with diffusion")
+            compositional_field_methods[i] = AdvectionFieldMethod::prescribed_field_with_diffusion;
           else
             AssertThrow(false,ExcNotImplemented());
         }
+
+      // Enable Volume of Fluid field tracking if any compositional_field_methods are volume_of_fluid
+      volume_of_fluid_tracking_enabled =
+        (std::count(compositional_field_methods.begin(),compositional_field_methods.end(),AdvectionFieldMethod::volume_of_fluid)
+         > 0);
 
       if (std::find(compositional_field_methods.begin(), compositional_field_methods.end(), AdvectionFieldMethod::fem_melt_field)
           != compositional_field_methods.end())
         AssertThrow (this->include_melt_transport,
                      ExcMessage ("The advection method 'melt field' can only be selected if melt "
                                  "transport is used in the simulation."));
+
+      if (std::find(compositional_field_methods.begin(), compositional_field_methods.end(), AdvectionFieldMethod::prescribed_field)
+          != compositional_field_methods.end()
+          ||
+          std::find(compositional_field_methods.begin(), compositional_field_methods.end(), AdvectionFieldMethod::prescribed_field_with_diffusion)
+          != compositional_field_methods.end())
+        AssertThrow (!this->use_discontinuous_composition_discretization,
+                     ExcMessage ("The advection method 'prescribed field' has not yet been tested with "
+                                 "a discontinuous composition discretization."));
 
       const std::vector<std::string> x_mapped_particle_properties
         = Utilities::split_string_list
@@ -1638,7 +1744,6 @@ namespace aspect
           (prm.get ("Material averaging"));
     }
     prm.leave_subsection ();
-
 
     // then, finally, let user additions that do not go through the usual
     // plugin mechanism, declare their parameters if they have subscribed

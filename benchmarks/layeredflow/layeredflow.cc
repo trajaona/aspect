@@ -66,7 +66,7 @@ namespace aspect
       double
       LayeredFlow_pressure (const Point<2> &,
                             const double &,
-                            const double epsilon)
+                            const double)
       {
         return 0;
       }
@@ -348,7 +348,7 @@ namespace aspect
     std::pair<std::string,std::string>
     LayeredFlowPostprocessor<dim>::execute (TableHandler &)
     {
-      std_cxx1x::shared_ptr<Function<dim> > ref_func;
+      std::shared_ptr<Function<dim> > ref_func;
       {
         const LayeredFlowMaterial<dim> *
         material_model
