@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2019 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -390,7 +390,7 @@ namespace aspect
       // If there is a free surface, also attach the mesh velocity object
       if ( this->get_free_surface_boundary_indicators().empty() == false && output_mesh_velocity)
         {
-          free_surface_variables.reset( new internal::FreeSurfacePostprocessor<dim>);
+          free_surface_variables = std::make_shared<internal::FreeSurfacePostprocessor<dim>>();
           free_surface_variables->initialize_simulator(this->get_simulator());
           data_out.add_data_vector (this->get_mesh_velocity(),
                                     *free_surface_variables);
@@ -485,18 +485,19 @@ namespace aspect
         }
 
       // Now build the patches. If selected, increase the output resolution.
-      if (interpolate_output)
-        {
-          data_out.build_patches (this->get_mapping(),
-                                  this->get_stokes_velocity_degree(),
-                                  this->get_geometry_model().has_curved_elements()
-                                  ?
-                                  DataOut<dim>::curved_inner_cells
-                                  :
-                                  DataOut<dim>::no_curved_cells);
-        }
-      else
-        data_out.build_patches(this->get_mapping()); // Giving the mapping ensures that the case with mesh deformation works correctly.
+      // Giving the mapping ensures that the case with mesh deformation works correctly.
+      const unsigned int subdivisions = interpolate_output
+                                        ?
+                                        this->get_stokes_velocity_degree()
+                                        :
+                                        0;
+      data_out.build_patches (this->get_mapping(),
+                              subdivisions,
+                              this->get_geometry_model().has_curved_elements()
+                              ?
+                              DataOut<dim>::curved_inner_cells
+                              :
+                              DataOut<dim>::no_curved_cells);
 
       // Now prepare everything for writing the output and choose output format
       std::string solution_file_prefix = "solution-" + Utilities::int_to_string (output_file_number, 5);
@@ -571,6 +572,10 @@ namespace aspect
           DataOutBase::VtkFlags vtk_flags;
           vtk_flags.cycle = this->get_timestep_number();
           vtk_flags.time = time_in_years_or_seconds;
+
+#if DEAL_II_VERSION_GTE(9,1,0)
+          vtk_flags.write_higher_order_cells = write_higher_order_output;
+#endif
 
           data_out.set_flags (vtk_flags);
 
@@ -676,11 +681,10 @@ namespace aspect
 
           // Create the temporary file; get at the actual filename
           // by using a C-style string that mkstemp will then overwrite
-          char *tmp_filename_x = new char[tmp_filename.size()+1];
-          std::strcpy(tmp_filename_x, tmp_filename.c_str());
-          int tmp_file_desc = mkstemp(tmp_filename_x);
-          tmp_filename = tmp_filename_x;
-          delete []tmp_filename_x;
+          std::vector<char> tmp_filename_x (tmp_filename.size()+1);
+          std::strcpy(tmp_filename_x.data(), tmp_filename.c_str());
+          const int tmp_file_desc = mkstemp(tmp_filename_x.data());
+          tmp_filename = tmp_filename_x.data();
 
           // If we failed to create the temp file, just write directly to the target file.
           // We also provide a warning about this fact. There are places where
@@ -799,7 +803,7 @@ namespace aspect
                              "set to a non-empty string it will be interpreted as a "
                              "temporary storage location.");
 
-          prm.declare_entry ("Interpolate output", "false",
+          prm.declare_entry ("Interpolate output", "true",
                              Patterns::Bool(),
                              "deal.II offers the possibility to linearly interpolate "
                              "output fields of higher order elements to a finer resolution. "
@@ -826,9 +830,10 @@ namespace aspect
                              "  \\includegraphics[width=0.5\\textwidth]{viz/parameters/build-patches}"
                              "\\end{center}"
                              "Here, the left picture shows one visualization cell per "
-                             "computational cell (i.e., the option is switch off, as is the "
-                             "default), and the right picture shows the same simulation with the "
-                             "option switched on. The images show the same data, demonstrating "
+                             "computational cell (i.e., the option is switched off), "
+                             "and the right picture shows the same simulation with the "
+                             "option switched on (which is the default). The images "
+                             "show the same data, demonstrating "
                              "that interpolating the solution onto bilinear shape functions as is "
                              "commonly done in visualizing data loses information."
                              "\n\n"
@@ -836,6 +841,30 @@ namespace aspect
                              "data \\aspect{} will write to disk: approximately by a factor of 4 in 2d, "
                              "and a factor of 8 in 3d, when using quadratic elements for the velocity, "
                              "and correspondingly more for even higher order elements.");
+
+          prm.declare_entry ("Write higher order output", "false",
+                             Patterns::Bool(),
+                             "deal.II offers the possibility to write vtu files with higher order "
+                             "representations of the output data. This means each cell will correctly "
+                             "show the higher order representation of the output data instead of the "
+                             "linear interpolation between vertices that ParaView and Visit usually show. "
+                             "Note that activating this option is safe and recommended, but requires that "
+                             "(i) ``Output format'' is set to ``vtu'', (ii) ``Interpolate output'' is "
+                             "set to true, (iii) you use a sufficiently new version of Paraview "
+                             "or Visit to read the files (Paraview version 5.5 or newer, and Visit version "
+                             "to be determined), and (iv) you use deal.II version 9.1.0 or newer. "
+                             "\n"
+                             "The effect of using this option can be seen in the following "
+                             "picture:"
+                             "\n\n"
+                             "\\begin{center}"
+                             "  \\includegraphics[width=0.5\\textwidth]{viz/parameters/higher-order-output}"
+                             "\\end{center}"
+                             "The top figure shows the plain output without interpolation or higher "
+                             "order output. The middle figure shows output that was interpolated as "
+                             "discussed for the ``Interpolate output'' option. The bottom panel "
+                             "shows higher order output that achieves better accuracy than the "
+                             "interpolated output at a lower memory cost.");
 
           prm.declare_entry ("Filter output", "false",
                              Patterns::Bool(),
@@ -948,6 +977,25 @@ namespace aspect
 
           interpolate_output = prm.get_bool("Interpolate output");
           filter_output = prm.get_bool("Filter output");
+          write_higher_order_output = prm.get_bool("Write higher order output");
+
+#if DEAL_II_VERSION_GTE(9,1,0)
+#else
+          AssertThrow(write_higher_order_output == false, ExcMessage("The 'Write higher order output' functionality is only "
+                                                                     "available for deal.II version 9.1.0 or newer. Please update "
+                                                                     "your deal.II version if you need this option."));
+#endif
+
+          if (write_higher_order_output == true)
+            {
+              AssertThrow(output_format == "vtu",
+                          ExcMessage("The option 'Postprocess/Visualization/Write higher order output' requires the "
+                                     "data output format to be set to 'vtu'"));
+              AssertThrow(interpolate_output == true,
+                          ExcMessage("The input parameter 'Postprocess/Visualization/Write higher order output' "
+                                     "requires the input parameter 'Interpolate output' to be set to 'true'"));
+            }
+
           output_mesh_velocity = prm.get_bool("Output mesh velocity");
 
           // now also see which derived quantities we are to compute

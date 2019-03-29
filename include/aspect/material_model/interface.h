@@ -23,6 +23,8 @@
 
 #include <aspect/global.h>
 #include <aspect/plugins.h>
+#include <aspect/material_model/utilities.h>
+
 #include <deal.II/base/point.h>
 #include <deal.II/base/quadrature.h>
 #include <deal.II/base/symmetric_tensor.h>
@@ -53,7 +55,7 @@ namespace aspect
     using namespace dealii;
 
     /**
-     * An namespace whose enum members are used in querying the nonlinear
+     * A namespace whose enum members are used in querying the nonlinear
      * dependence of physical parameters on other solution variables.
      */
     namespace NonlinearDependence
@@ -99,7 +101,7 @@ namespace aspect
       inline Dependence operator | (const Dependence d1,
                                     const Dependence d2)
       {
-        return Dependence((int)d1 | (int)d2);
+        return Dependence(static_cast<int>(d1) | static_cast<int>(d2));
       }
 
       inline Dependence operator |= (Dependence &d1,
@@ -798,6 +800,44 @@ namespace aspect
 
 
     /**
+     * Additional output fields for prescribed field outputs to be added to
+     * the MaterialModel::MaterialModelOutputs structure and filled in the
+     * MaterialModel::Interface::evaluate() function.
+     *
+     * This structure is used if for one of the compositional fields employed
+     * by a simulation, the advection scheme "prescribed field" is selected.
+     * (See Parameters::AdvectionFieldMethod for more information.)
+     * Then, while updating the compositional field, a structure of this
+     * type is created, given to the material model, and the material model
+     * outputs will finally be interpolated onto the corresponding
+     * compositional field.
+     *
+     * @note This structure always has as many prescribed field
+     * outputs as there are compositional fields, even if not all of them
+     * are using the "prescribed field" method. It is the responsibility
+     * of the individual material models to fill the correct entries.
+     */
+    template <int dim>
+    class PrescribedFieldOutputs : public NamedAdditionalMaterialOutputs<dim>
+    {
+      public:
+        PrescribedFieldOutputs (const unsigned int n_points,
+                                const unsigned int n_comp);
+
+        virtual std::vector<double> get_nth_output(const unsigned int idx) const;
+
+        /**
+         * Prescribed field outputs for all compositional fields at the evaluation points
+         * that are passed to the instance of MaterialModel::Interface::evaluate()
+         * that fills the current object.
+         * prescribed_field_outputs[q][c] is the prescribed field output at the evaluation point q
+         * for the compositional field with the index c.
+         */
+        std::vector<std::vector<double> > prescribed_field_outputs;
+    };
+
+
+    /**
      * A class for additional output fields to be added to the RHS of the
      * Stokes system, which can be attached to the
      * MaterialModel::MaterialModelOutputs structure and filled in the
@@ -875,24 +915,6 @@ namespace aspect
     };
 
 
-    /**
-     * For multicomponent material models: Given a vector of of compositional
-     * fields of length N, this function returns a vector of volume fractions
-     * of length N+1, corresponding to the volume fraction of a ``background
-     * material'' as the first entry, and volume fractions for each of the input
-     * fields as the following entries. The returned vector will sum to one.
-     * If the sum of the compositional_fields is greater than
-     * one, we assume that there is no background mantle (i.e., that field value
-     * is zero). Otherwise, the difference between the sum of the compositional
-     * fields and 1.0 is assumed to be the amount of background mantle.
-     * Optionally, one can input a component mask that determines which of the
-     * compositional fields to use during the computation (e.g. because
-     * some fields contain non-volumetric quantities like strain,
-     * porosity, or trace elements). By default, all fields are included.
-     */
-    std::vector<double>
-    compute_volume_fractions(const std::vector<double> &compositional_fields,
-                             const ComponentMask &field_mask = ComponentMask());
 
     /**
      * A base class for parameterizations of material models. Classes derived

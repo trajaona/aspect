@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2019 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -21,6 +21,7 @@
 
 #include <aspect/simulator.h>
 #include <aspect/melt.h>
+#include <aspect/volume_of_fluid/handler.h>
 #include <aspect/newton.h>
 #include <aspect/global.h>
 
@@ -32,6 +33,7 @@
 #include <aspect/particle/integrator/interface.h>
 #include <aspect/particle/interpolator/interface.h>
 #include <aspect/particle/output/interface.h>
+#include <aspect/particle/property/interface.h>
 #include <aspect/postprocess/visualization.h>
 
 #include <deal.II/base/index_set.h>
@@ -275,7 +277,9 @@ namespace aspect
     Particle::Generator::write_plugin_graph<dim>(out);
     Particle::Integrator::write_plugin_graph<dim>(out);
     Particle::Interpolator::write_plugin_graph<dim>(out);
+#if !DEAL_II_VERSION_GTE(9,0,0)
     Particle::Output::write_plugin_graph<dim>(out);
+#endif
     Particle::Property::Manager<dim>::write_plugin_graph(out);
     Postprocess::Manager<dim>::write_plugin_graph(out);
     Postprocess::Visualization<dim>::write_plugin_graph(out);
@@ -613,6 +617,8 @@ namespace aspect
     // make sure that the timestep doesn't increase too fast
     if (time_step != 0)
       new_time_step = std::min(new_time_step, time_step + time_step * parameters.maximum_relative_increase_time_step);
+    else
+      new_time_step = std::min(new_time_step, parameters.maximum_first_time_step);
 
     new_time_step = termination_manager.check_for_last_time_step(std::min(new_time_step,
                                                                           parameters.maximum_time_step));
@@ -1041,7 +1047,7 @@ namespace aspect
     //
     // We have to deal with several complications:
     // - we can have an FE_Q or an FE_DGP for the pressure
-    // - we might use a direct solver, so pressure and velocity is in the same block
+    // - we might use a direct solver, so pressure and velocity are in the same block
     // - we might have melt transport, where we need to operate only on p_f
     //
     // We ensure int_\Omega f = 0 by computing a correction factor
@@ -1053,9 +1059,10 @@ namespace aspect
     //
     // We can compute
     //   c = \int f = (f, 1) = (f, \sum_i \phi_i) = \sum_i (f, \phi_i) = \sum_i F_i
-    // which is just the sum over the RHS vector for FE_Q. For FE_DGP we need
-    // to restrict to 0th shape functions on each cell because this is how we
-    // represent the function 1.
+    // which is just the sum over the RHS vector for FE_Q. For FE_DGP
+    // we need to restrict to 0th shape functions on each cell,
+    // because this is the shape function that is constant 1. (The
+    // other shape functions have mean value zero.)
     //
     // To make the adjustment fnew = f - c/|\Omega|
     // note that
@@ -1168,8 +1175,6 @@ namespace aspect
 
         vector.compress(VectorOperation::add);
       }
-
-
   }
 
 
@@ -1261,6 +1266,14 @@ namespace aspect
   template <int dim>
   void Simulator<dim>::apply_limiter_to_dg_solutions (const AdvectionField &advection_field)
   {
+    // TODO: Modify to more robust method
+    // Skip if this composition field is being set from the volume_of_fluid handler
+    if (!advection_field.is_temperature() &&
+        parameters.volume_of_fluid_tracking_enabled)
+      if (volume_of_fluid_handler->field_index_for_name(introspection.name_for_compositional_index(advection_field.compositional_variable))
+          != volume_of_fluid_handler->get_n_fields())
+        return;
+
     /*
      * First setup the quadrature points which are used to find the maximum and minimum solution values at those points.
      * A quadrature formula that combines all quadrature points constructed as all tensor products of
@@ -1275,33 +1288,33 @@ namespace aspect
 
     const unsigned int n_q_points_1 = quadrature_formula_1.size();
     const unsigned int n_q_points_2 = quadrature_formula_2.size();
-    const unsigned int n_q_points   = dim * n_q_points_2 *std::pow(n_q_points_1, dim-1) ;
+    const unsigned int n_q_points   = dim * n_q_points_2 * static_cast<unsigned int>(std::pow(n_q_points_1, dim-1));
 
-    std::vector< Point <dim> > quadrature_points (n_q_points);
+    std::vector< Point <dim> > quadrature_points;
+    quadrature_points.reserve(n_q_points);
 
     switch (dim)
       {
         case 2:
         {
           // append quadrature points combination 12
-          for ( unsigned int i=0; i < n_q_points_1 ; i++)
+          for (unsigned int i=0; i < n_q_points_1 ; ++i)
             {
               const double  x = quadrature_formula_1.point(i)(0);
-              for ( unsigned int j=0; j < n_q_points_2 ; j++)
+              for (unsigned int j=0; j < n_q_points_2 ; ++j)
                 {
-                  const double  y = quadrature_formula_2.point(j)(0);
-                  quadrature_points[i * n_q_points_2+j] = Point<dim>(x,y);
+                  const double y = quadrature_formula_2.point(j)(0);
+                  quadrature_points.push_back(Point<dim>(x,y));
                 }
             }
-          const unsigned int n_q_points_12 = n_q_points_1 * n_q_points_2;
           // append quadrature points combination 21
-          for ( unsigned int i=0; i < n_q_points_2 ; i++)
+          for (unsigned int i=0; i < n_q_points_2 ; ++i)
             {
               const double  x = quadrature_formula_2.point(i)(0);
-              for ( unsigned int j=0; j < n_q_points_1 ; j++)
+              for (unsigned int j=0; j < n_q_points_1 ; ++j)
                 {
-                  const double  y = quadrature_formula_1.point(j)(0);
-                  quadrature_points[n_q_points_12 + i * n_q_points_1+j ] = Point<dim>(x,y);
+                  const double y = quadrature_formula_1.point(j)(0);
+                  quadrature_points.push_back(Point<dim>(x,y));
                 }
             }
           break;
@@ -1310,50 +1323,44 @@ namespace aspect
         case 3:
         {
           // append quadrature points combination 121
-          for ( unsigned int i=0; i < n_q_points_1 ; i++)
+          for ( unsigned int i=0; i < n_q_points_1 ; ++i)
             {
-              const double  x = quadrature_formula_1.point(i)(0);
-              for ( unsigned int j=0; j < n_q_points_2 ; j++)
+              const double x = quadrature_formula_1.point(i)(0);
+              for ( unsigned int j=0; j < n_q_points_2 ; ++j)
                 {
-                  const double  y = quadrature_formula_2.point(j)(0);
-                  for ( unsigned int k=0; k < n_q_points_1 ; k++)
+                  const double y = quadrature_formula_2.point(j)(0);
+                  for ( unsigned int k=0; k < n_q_points_1 ; ++k)
                     {
-                      const unsigned int k_index = i * n_q_points_2 * n_q_points_1 + j * n_q_points_2 + k;
-                      const double  z = quadrature_formula_1.point(k)(0);
-                      quadrature_points[k_index] = Point<dim>(x,y,z);
+                      const double z = quadrature_formula_1.point(k)(0);
+                      quadrature_points.push_back(Point<dim>(x,y,z));
                     }
                 }
             }
-          const unsigned int n_q_points_121 = n_q_points_1 * n_q_points_2 * n_q_points_1;
           // append quadrature points combination 112
-          for ( unsigned int i=0; i < n_q_points_1 ; i++)
+          for (unsigned int i=0; i < n_q_points_1 ; ++i)
             {
-              const double  x = quadrature_formula_1.point(i)(0);
-              for ( unsigned int j=0; j < n_q_points_1 ; j++)
+              const double x = quadrature_formula_1.point(i)(0);
+              for (unsigned int j=0; j < n_q_points_1 ; ++j)
                 {
                   const double y = quadrature_formula_1.point(j)(0);
-                  for ( unsigned int k=0; k < n_q_points_2 ; k++)
+                  for (unsigned int k=0; k < n_q_points_2 ; ++k)
                     {
-                      const unsigned int k_index =
-                        n_q_points_121 + i * n_q_points_1 * n_q_points_2 + j * n_q_points_2 + k;
-                      const double  z = quadrature_formula_2.point(k)(0);
-                      quadrature_points[k_index] = Point<dim>(x,y,z);
+                      const double z = quadrature_formula_2.point(k)(0);
+                      quadrature_points.push_back(Point<dim>(x,y,z));
                     }
                 }
             }
           // append quadrature points combination 211
-          for ( unsigned int i=0; i < n_q_points_2 ; i++)
+          for (unsigned int i=0; i < n_q_points_2 ; ++i)
             {
-              const double  x = quadrature_formula_2.point(i)(0);
-              for ( unsigned int j=0; j < n_q_points_1 ; j++)
+              const double x = quadrature_formula_2.point(i)(0);
+              for ( unsigned int j=0; j < n_q_points_1 ; ++j)
                 {
-                  const double  y = quadrature_formula_1.point(j)(0);
-                  for ( unsigned int k=0; k < n_q_points_1 ; k++)
+                  const double y = quadrature_formula_1.point(j)(0);
+                  for ( unsigned int k=0; k < n_q_points_1 ; ++k)
                     {
-                      const unsigned int k_index =
-                        2 * n_q_points_121 + i * n_q_points_2 * n_q_points_1 + j * n_q_points_1 + k;
-                      const double  z = quadrature_formula_1.point(k)(0);
-                      quadrature_points[k_index] = Point<dim>(x,y,z);
+                      const double z = quadrature_formula_1.point(k)(0);
+                      quadrature_points.push_back(Point<dim>(x,y,z));
                     }
                 }
             }
@@ -1363,6 +1370,8 @@ namespace aspect
         default:
           Assert (false, ExcNotImplemented());
       }
+
+    Assert (quadrature_points.size() == n_q_points, ExcInternalError());
     Quadrature<dim> quadrature_formula(quadrature_points);
 
     // Quadrature rules only used for the numerical integration for better accuracy
@@ -1446,6 +1455,7 @@ namespace aspect
                     local_solution_average += values_0[q]*fe_values_0.JxW(q);
                   }
                 local_solution_average /= local_area;
+
                 /*
                  * Define theta: a scaling constant used to correct the old solution by the formula
                  *   new_value = theta * (old_value-old_solution_cell_average)+old_solution_cell_average
@@ -1467,9 +1477,9 @@ namespace aspect
                   }
 
                 /* Modify the advection degrees of freedom of the numerical solution.
-                 * note that we are using DG elements, so every DoF on a locally owned cell is locally owned;
+                 * Note that we are using DG elements, so every DoF on a locally owned cell is locally owned;
                  * this means that we do not need to check whether the 'distributed_solution' vector actually
-                 *  stores the element we read from/write to here.
+                 * stores the element we read from/write to here.
                  */
                 for (unsigned int j = 0;
                      j < finite_element.base_element(advection_field.base_element(introspection)).dofs_per_cell;
@@ -1586,7 +1596,7 @@ namespace aspect
     // on every cell, compute the update, and then on every cell put the result into the
     // distributed_vector vector. Only after the loop over all cells do we copy distributed_vector
     // back onto the solution vector.
-    // So even though we touch some DoF twice, we always start from the same value, compute the
+    // So even though we touch some DoF more than once, we always start from the same value, compute the
     // same value, and then overwrite the same value in distributed_vector.
     // TODO: make this more effective
     typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
@@ -1728,6 +1738,102 @@ namespace aspect
   }
 
 
+
+  template <int dim>
+  void Simulator<dim>::interpolate_material_output_into_compositional_field (const unsigned int c)
+  {
+    // we need some temporary vectors to store our updates to composition in
+    // before we copy them over to the solution vector in the end
+    LinearAlgebra::BlockVector distributed_vector (introspection.index_sets.system_partitioning,
+                                                   mpi_communicator);
+
+    const std::string name_of_field = introspection.name_for_compositional_index(c);
+
+    pcout << "   Copying properties into prescribed compositional field " + name_of_field + "."
+          << std::endl;
+
+    // Create an FEValues object that allows us to interpolate onto the solution
+    // vector. To make this happen, we need to have a quadrature formula that
+    // consists of the support points of the compositional field finite element
+    const Quadrature<dim> quadrature(dof_handler.get_fe()
+                                     .base_element(introspection.base_elements.compositional_fields)
+                                     .get_unit_support_points());
+
+    FEValues<dim> fe_values (*mapping,
+                             dof_handler.get_fe(),
+                             quadrature,
+                             update_quadrature_points | update_values | update_gradients);
+
+    std::vector<types::global_dof_index> local_dof_indices (dof_handler.get_fe().dofs_per_cell);
+    MaterialModel::MaterialModelInputs<dim> in(quadrature.size(), introspection.n_compositional_fields);
+    MaterialModel::MaterialModelOutputs<dim> out(quadrature.size(), introspection.n_compositional_fields);
+
+    // add the prescribed field outputs that will be used for interpolating
+    material_model->create_additional_named_outputs(out);
+
+    MaterialModel::PrescribedFieldOutputs<dim> *prescribed_field_out
+      = out.template get_additional_output<MaterialModel::PrescribedFieldOutputs<dim> >();
+
+    // check if the material model computes prescribed field outputs
+    AssertThrow(prescribed_field_out != NULL,
+                ExcMessage("You are trying to use a prescribed advection field, "
+                           "but the material model you use does not support interpolating properties "
+                           "(it does not create PrescribedFieldOutputs, which is required for this "
+                           "advection field type)."));
+
+    // Make a loop first over all cells, and then over all degrees of freedom in each element
+    // to interpolate material properties onto a solution vector.
+
+    // Note that the values for some degrees of freedom are set more than once in the loop
+    // below where we assign the new values to distributed_vector (if they are located on the
+    // interface between cells), as we loop over all cells, and then over all degrees of freedom
+    // on each cell. But even though we touch some DoF more than once, we always compute the same value,
+    // and then overwrite the same value in distributed_vector.
+    typename DoFHandler<dim>::active_cell_iterator cell = dof_handler.begin_active(),
+                                                   endc = dof_handler.end();
+    for (; cell!=endc; ++cell)
+      if (cell->is_locally_owned())
+        {
+          fe_values.reinit (cell);
+          cell->get_dof_indices (local_dof_indices);
+          in.reinit(fe_values, cell, introspection, solution);
+
+          material_model->evaluate(in, out);
+
+          // Interpolate material properties onto the compositional fields
+          for (unsigned int j=0; j<dof_handler.get_fe().base_element(introspection.base_elements.compositional_fields).dofs_per_cell; ++j)
+            {
+              const unsigned int composition_idx
+                = dof_handler.get_fe().component_to_system_index(introspection.component_indices.compositional_fields[c],
+                                                                 /*dof index within component=*/ j);
+
+              // Skip degrees of freedom that are not locally owned. These
+              // will eventually be handled by one of the other processors.
+              if (dof_handler.locally_owned_dofs().is_element(local_dof_indices[composition_idx]))
+                {
+                  Assert(numbers::is_finite(prescribed_field_out->prescribed_field_outputs[j][c]),
+                         ExcMessage("You are trying to use a prescribed advection field, "
+                                    "but the material model you use does not fill the PrescribedFieldOutputs "
+                                    "for your prescribed field, which is required for this method."));
+
+                  distributed_vector(local_dof_indices[composition_idx])
+                    = prescribed_field_out->prescribed_field_outputs[j][c];
+                }
+            }
+        }
+
+    // Put the final values into the solution vector, also
+    // updating the ghost elements of the 'solution' vector.
+    const unsigned int block_c = introspection.block_indices.compositional_fields[c];
+    distributed_vector.block(block_c).compress(VectorOperation::insert);
+    solution.block(block_c) = distributed_vector.block(block_c);
+
+    // We also want to copy the values into the old solution, because it might
+    // be used in other parts of the code.
+    old_solution.block(block_c) = distributed_vector.block(block_c);
+  }
+
+
   template <int dim>
   void
   Simulator<dim>::check_consistency_of_formulation()
@@ -1820,6 +1926,80 @@ namespace aspect
       }
   }
 
+
+  template <int dim>
+  void
+  Simulator<dim>::replace_outflow_boundary_ids(const unsigned int offset)
+  {
+    const QGauss<dim-1> quadrature_formula (finite_element.base_element(introspection.base_elements.temperature).degree+1);
+
+    FEFaceValues<dim> fe_face_values (*mapping,
+                                      finite_element,
+                                      quadrature_formula,
+                                      update_values   | update_normal_vectors |
+                                      update_quadrature_points | update_JxW_values);
+
+    std::vector<Tensor<1,dim> > face_current_velocity_values (fe_face_values.n_quadrature_points);
+
+    // Loop over all of the boundary faces, ...
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+
+    for (; cell!=endc; ++cell)
+      if (!cell->is_artificial())
+        for (unsigned int face_number=0; face_number<GeometryInfo<dim>::faces_per_cell; ++face_number)
+          {
+            typename DoFHandler<dim>::face_iterator face = cell->face(face_number);
+            if (face->at_boundary())
+              {
+                Assert(face->boundary_id() <= offset,
+                       ExcMessage("If you do not 'Allow fixed temperature/composition on outflow boundaries', "
+                                  "you are only allowed to use boundary ids between 0 and 128."));
+
+                fe_face_values.reinit (cell, face_number);
+                fe_face_values[introspection.extractors.velocities].get_function_values(current_linearization_point,
+                                                                                        face_current_velocity_values);
+
+                // ... check if the face is an outflow boundary by integrating the normal velocities
+                // (flux through the boundary) as: int u*n ds = Sum_q u(x_q)*n(x_q) JxW(x_q)...
+                double integrated_flow = 0;
+                for (unsigned int q=0; q<fe_face_values.n_quadrature_points; ++q)
+                  {
+                    integrated_flow += (face_current_velocity_values[q] * fe_face_values.normal_vector(q)) *
+                                       fe_face_values.JxW(q);
+                  }
+
+                // ... and change the boundary id of any outflow boundary faces.
+                if (integrated_flow > 0)
+                  face->set_boundary_id(face->boundary_id() + offset);
+              }
+          }
+  }
+
+
+  template <int dim>
+  void
+  Simulator<dim>::restore_outflow_boundary_ids(const unsigned int offset)
+  {
+    // Loop over all of the boundary faces...
+    typename DoFHandler<dim>::active_cell_iterator
+    cell = dof_handler.begin_active(),
+    endc = dof_handler.end();
+
+    for (; cell!=endc; ++cell)
+      if (!cell->is_artificial())
+        for (unsigned int face_number=0; face_number<GeometryInfo<dim>::faces_per_cell; ++face_number)
+          {
+            typename DoFHandler<dim>::face_iterator face = cell->face(face_number);
+            if (face->at_boundary())
+              {
+                // ... and reset all of the boundary ids we changed in replace_outflow_boundary_ids above.
+                if (face->boundary_id() >= offset)
+                  face->set_boundary_id(face->boundary_id() - offset);
+              }
+          }
+  }
 
 
   namespace
@@ -2181,7 +2361,10 @@ namespace aspect
   template void Simulator<dim>::interpolate_onto_velocity_system(const TensorFunction<1,dim> &func, LinearAlgebra::Vector &vec);\
   template void Simulator<dim>::apply_limiter_to_dg_solutions(const AdvectionField &advection_field); \
   template void Simulator<dim>::compute_reactions(); \
+  template void Simulator<dim>::interpolate_material_output_into_compositional_field(const unsigned int c); \
   template void Simulator<dim>::check_consistency_of_formulation(); \
+  template void Simulator<dim>::replace_outflow_boundary_ids(const unsigned int boundary_id_offset); \
+  template void Simulator<dim>::restore_outflow_boundary_ids(const unsigned int boundary_id_offset); \
   template void Simulator<dim>::check_consistency_of_boundary_conditions() const; \
   template double Simulator<dim>::compute_initial_newton_residual(const LinearAlgebra::BlockVector &linearized_stokes_initial_guess); \
   template double Simulator<dim>::compute_Eisenstat_Walker_linear_tolerance(const bool EisenstatWalkerChoiceOne, \

@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2019 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -186,6 +186,12 @@ namespace aspect
 
     assemblers->advection_system.push_back(
       std_cxx14::make_unique<aspect::Assemblers::AdvectionSystem<dim> >());
+
+    // add the diffusion assemblers if we have fields that use this method
+    if (std::find(parameters.compositional_field_methods.begin(), parameters.compositional_field_methods.end(),
+                  Parameters<dim>::AdvectionFieldMethod::prescribed_field_with_diffusion) != parameters.compositional_field_methods.end())
+      assemblers->advection_system.push_back(
+        std_cxx14::make_unique<aspect::Assemblers::DiffusionSystem<dim> >());
 
     if (parameters.use_discontinuous_temperature_discretization ||
         parameters.use_discontinuous_composition_discretization)
@@ -420,7 +426,7 @@ namespace aspect
     if (parameters.use_direct_stokes_solver)
       return;
 
-    TimerOutput::Scope timer (computing_timer, "   Build Stokes preconditioner");
+    TimerOutput::Scope timer (computing_timer, "Build Stokes preconditioner");
     pcout << "   Rebuilding Stokes preconditioner..." << std::flush;
 
     // first assemble the raw matrices necessary for the preconditioner
@@ -434,11 +440,11 @@ namespace aspect
                                       constant_modes);
 
     if (parameters.include_melt_transport)
-      Mp_preconditioner.reset (new LinearAlgebra::PreconditionAMG());
+      Mp_preconditioner = std_cxx14::make_unique<LinearAlgebra::PreconditionAMG>();
     else
-      Mp_preconditioner.reset (new LinearAlgebra::PreconditionILU());
+      Mp_preconditioner = std_cxx14::make_unique<LinearAlgebra::PreconditionILU>();
 
-    Amg_preconditioner.reset (new LinearAlgebra::PreconditionAMG());
+    Amg_preconditioner = std_cxx14::make_unique<LinearAlgebra::PreconditionAMG>();
 
     LinearAlgebra::PreconditionAMG::AdditionalData Amg_data;
 #ifdef ASPECT_USE_PETSC
@@ -669,16 +675,25 @@ namespace aspect
   {
     TimerOutput::Scope timer (computing_timer,
                               (!assemble_newton_stokes_system ?
-                               "   Assemble Stokes system" :
+                               "Assemble Stokes system" :
                                (assemble_newton_stokes_matrix ?
                                 (newton_handler->parameters.newton_derivative_scaling_factor == 0 ?
-                                 "   Assemble Stokes system Picard" :
-                                 "   Assemble Stokes system Newton")
+                                 "Assemble Stokes system Picard" :
+                                 "Assemble Stokes system Newton")
                                 :
-                                "   Assemble Stokes system rhs")));
+                                "Assemble Stokes system rhs")));
 
     if (rebuild_stokes_matrix == true)
       system_matrix = 0;
+
+    // We are using constraints.distribute_local_to_global() without a matrix
+    // if we do not rebuild the Stokes matrix. This produces incorrect results
+    // when having inhomogeneous constraints. Make sure that we can not have
+    // this situation (no active boundary conditions means that only
+    // no-slip/free slip are used). This should not happen as we set this up
+    // correctly before calling this function.
+    Assert(rebuild_stokes_matrix || boundary_velocity_manager.get_active_boundary_velocity_conditions().size()==0,
+           ExcInternalError("If we have inhomogeneous constraints, we must re-assemble the system matrix."));
 
     system_rhs = 0;
     if (do_pressure_rhs_compatibility_modification)
@@ -790,8 +805,8 @@ namespace aspect
                                                  LinearAlgebra::PreconditionILU &preconditioner)
   {
     TimerOutput::Scope timer (computing_timer, (advection_field.is_temperature() ?
-                                                "   Build temperature preconditioner" :
-                                                "   Build composition preconditioner"));
+                                                "Build temperature preconditioner" :
+                                                "Build composition preconditioner"));
 
     const unsigned int block_idx = advection_field.block_index(introspection);
     preconditioner.initialize (system_matrix.block(block_idx, block_idx));
@@ -990,6 +1005,16 @@ namespace aspect
                 material_model->evaluate(scratch.face_material_model_inputs,
                                          scratch.face_material_model_outputs);
 
+                if (parameters.formulation_temperature_equation ==
+                    Parameters<dim>::Formulation::TemperatureEquation::reference_density_profile)
+                  {
+                    const unsigned int n_q_points = scratch.face_finite_element_values->n_quadrature_points;
+                    for (unsigned int q=0; q<n_q_points; ++q)
+                      {
+                        scratch.face_material_model_outputs.densities[q] = adiabatic_conditions->density(scratch.face_material_model_inputs.position[q]);
+                      }
+                  }
+
                 heating_model_manager.evaluate(scratch.face_material_model_inputs,
                                                scratch.face_material_model_outputs,
                                                scratch.face_heating_model_outputs);
@@ -1065,8 +1090,8 @@ namespace aspect
   void Simulator<dim>::assemble_advection_system (const AdvectionField &advection_field)
   {
     TimerOutput::Scope timer (computing_timer, (advection_field.is_temperature() ?
-                                                "   Assemble temperature system" :
-                                                "   Assemble composition system"));
+                                                "Assemble temperature system" :
+                                                "Assemble composition system"));
 
     const unsigned int block_idx = advection_field.block_index(introspection);
 
