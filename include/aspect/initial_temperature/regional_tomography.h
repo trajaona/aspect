@@ -105,11 +105,11 @@ namespace aspect
          * function that calculate temperature within the lithopshere as a function of depth
          */
         double lithosphere_geotherm (const double &z /*depth*/,
-        		                                  const double &lithosphere_thickness,
-        		                                  const double &upper_crust_thickness,
-									              const double &middle_crust_thickness,
-									              const double &lower_crust_thickness,
-									              const double &lab_temp) const;
+                                     const double &lithosphere_thickness,
+                                     const double &upper_crust_thickness,
+                                     const double &middle_crust_thickness,
+                                     const double &lower_crust_thickness,
+                                     const double &lab_temp) const;
 
         /*double atmospheric_thermal_gradient;
          *vector<double> heat_flux;

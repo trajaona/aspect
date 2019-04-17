@@ -288,7 +288,7 @@ namespace aspect
         bool use_viscous_strain_weakening;
 
         bool use_finite_strain_tensor;
- 
+
 
         /**
          * Whether to use absolute density field for the crust.
