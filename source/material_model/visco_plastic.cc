@@ -129,6 +129,8 @@ namespace aspect
       // gradient used when calculating the viscosity. This allows the same activation volume
       // to be used in incompressible and compressible models.
       const double temperature_for_viscosity = temperature + adiabatic_temperature_gradient_for_viscosity*pressure;
+       std::vector<double>::const_iterator max_volume_fraction = std::max_element(volume_fractions.begin(),volume_fractions.end());
+      
       Assert(temperature_for_viscosity != 0, ExcMessage(
                "The temperature used in the calculation of the visco-plastic rheology is zero. "
                "This is not allowed, because this value is used to divide through. It is probably "
@@ -145,6 +147,7 @@ namespace aspect
       std::vector<bool> composition_yielding(volume_fractions.size());
       for (unsigned int j=0; j < volume_fractions.size(); ++j)
         {
+           std::vector<double>::const_iterator max_volume_fraction = std::max_element(volume_fractions.begin(),volume_fractions.end());
           // Power law creep equation
           //    viscosity = 0.5 * A^(-1/n) * edot_ii^((1-n)/n) * d^(m/n) * exp((E + P*V)/(nRT))
           // A: prefactor, edot_ii: square root of second invariant of deviatoric strain rate tensor,
@@ -166,6 +169,15 @@ namespace aspect
 
           // Select what form of viscosity to use (diffusion, dislocation or composite)
           double viscosity_pre_yield = 0.0;
+ 
+          if (j==0)
+          {
+          viscosity_diffusion =  std::min(std::max(viscosity_diffusion, min_visc), max_visc);
+          viscosity_dislocation =  std::min(std::max(viscosity_dislocation, min_visc), max_visc);
+          viscosity_pre_yield = (viscosity_diffusion * viscosity_dislocation)/(viscosity_diffusion + viscosity_dislocation);
+          }
+          else
+          {
           switch (viscous_type)
             {
               case diffusion:
@@ -189,6 +201,7 @@ namespace aspect
                 break;
               }
             }
+          }
 
 
           // Second step: strain weakening
@@ -239,6 +252,10 @@ namespace aspect
               }
             }
 
+          if (this->introspection().compositional_index_for_name("sticky_air")+1 ==
+                       std::distance(volume_fractions.begin(),max_volume_fraction))
+          composition_viscosities[j] = 1e18;
+          else
           // Limit the viscosity with specified minimum and maximum bounds
           composition_viscosities[j] = std::min(std::max(viscosity_yield, min_visc), max_visc);
 
@@ -569,7 +586,10 @@ namespace aspect
                 composition_mask.set(i,false);
             }
         }
-
+          composition_mask.set(this->introspection().compositional_index_for_name("upper_crust_density"),false);
+          composition_mask.set(this->introspection().compositional_index_for_name("middle_crust_density"),false);
+          composition_mask.set(this->introspection().compositional_index_for_name("lower_crust_density"),false);
+ 
       return composition_mask;
     }
 
@@ -602,7 +622,37 @@ namespace aspect
           double thermal_diffusivity = 0.0;
 
           for (unsigned int j=0; j < volume_fractions.size(); ++j)
-            thermal_diffusivity += volume_fractions[j] * thermal_diffusivities[j];
+            {
+              thermal_diffusivity += volume_fractions[j] * thermal_diffusivities[j];
+              out.thermal_expansion_coefficients[i] += volume_fractions[j] * thermal_expansivities[j];
+              out.specific_heat[i] += volume_fractions[j] * heat_capacities[j];
+
+              // not strictly correct if thermal expansivities are different, since we are interpreting
+              // these compositions as volume fractions, but the error introduced should not be too bad.
+              const double temperature_factor = (1.0 - thermal_expansivities[j] * (in.temperature[i] - reference_T));
+              std::vector<double>::const_iterator max_volume_fraction = std::max_element(volume_fractions.begin(),volume_fractions.end());
+              if (use_density_field==true)
+                {
+                  if (this->introspection().compositional_index_for_name("upper_crust")+1 ==
+                          std::distance(volume_fractions.begin(),max_volume_fraction))
+                      out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("upper_crust_density")];
+                  else if (this->introspection().compositional_index_for_name("middle_crust")+1 ==
+                      std::distance(volume_fractions.begin(),max_volume_fraction))
+                      out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("middle_crust_density")];
+                  else  if (this->introspection().compositional_index_for_name("lower_crust")+1 ==
+                      std::distance(volume_fractions.begin(),max_volume_fraction))
+                      out.densities[i] = in.composition[i][this->introspection().compositional_index_for_name("lower_crust_density")];
+                  else  if (this->introspection().compositional_index_for_name("sticky_air")+1 ==
+                      std::distance(volume_fractions.begin(),max_volume_fraction))
+                      out.densities[i] = 10.0;
+                  else
+                      out.densities[i] += volume_fractions[j] * densities[j] * temperature_factor;
+                }
+              else
+                {
+                  out.densities[i] += volume_fractions[j] * densities[j] * temperature_factor;
+                }
+            }
 
           // Thermal conductivity at the given positions. If the temperature equation uses
           // the reference density profile formulation, use the reference density to
@@ -1005,6 +1055,11 @@ namespace aspect
                              "Using a pressure gradient of 32436 Pa/m, then a value of "
                              "0.3 $K/km$ = 0.0003 $K/m$ = 9.24e-09 $K/Pa$ gives an earth-like adiabat."
                              "Units: $K/Pa$");
+          
+           // Density independant of temperature 
+           prm.declare_entry ("Use absolute density the crust", "false",
+                             Patterns::Bool (),
+                             "Use absolute density for the crust.  Units: None");
         }
         prm.leave_subsection();
       }
@@ -1287,6 +1342,20 @@ namespace aspect
                                      "'single Advection, iterated Stokes' when strain "
                                      "weakening is enabled."));
             }
+   
+            use_density_field = prm.get_bool("Use absolute density the crust");
+             if (use_density_field)
+            {
+              AssertThrow(this->introspection().compositional_name_exists("upper_crust_density"),
+                          ExcMessage("Material model visco_plastic with crustal absolute density only works if there is a "
+                                     "compositional field called upper_crust_density."));
+              AssertThrow(this->introspection().compositional_name_exists("middle_crust_density"),
+                                      ExcMessage("Material model visco_plastic with crustal absolute density only works if there is a "
+                                                 "compositional field called middle_crust_density."));
+              AssertThrow(this->introspection().compositional_name_exists("lower_crust_density"),
+                                      ExcMessage("Material model visco_plastic with crustal absolute density only works if there is a "
+                                                 "compositional field called lower_crust_density."));
+             }           
 
         }
         prm.leave_subsection();
