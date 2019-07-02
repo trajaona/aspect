@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2015 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2017 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,15 +14,19 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
 
+#include <aspect/mesh_refinement/slope.h>
+#include <aspect/gravity_model/interface.h>
+#include <aspect/geometry_model/interface.h>
+#include <aspect/geometry_model/initial_topography_model/zero_topography.h>
+
 #include <deal.II/base/quadrature_lib.h>
 #include <deal.II/fe/fe_values.h>
 
-#include <aspect/mesh_refinement/slope.h>
 
 namespace aspect
 {
@@ -52,23 +56,26 @@ namespace aspect
             if (cell->face(face_no)->at_boundary())
               {
                 const types::boundary_id boundary_indicator
-#if DEAL_II_VERSION_GTE(8,3,0)
                   = cell->face(face_no)->boundary_id();
-#else
-                  = cell->face(face_no)->boundary_indicator();
-#endif
-                if ( this->get_free_surface_boundary_indicators().find(boundary_indicator) !=
-                     this->get_free_surface_boundary_indicators().end() )
+
+                // Use cases for this plugin include a deforming mesh,
+                // or a fixed mesh with initial topography
+                if ( (this->get_parameters().mesh_deformation_enabled &&
+                      this->get_mesh_deformation_boundary_indicators().find(boundary_indicator) !=
+                      this->get_mesh_deformation_boundary_indicators().end()) ||
+                     (dynamic_cast<const InitialTopographyModel::ZeroTopography<dim>*>(&this->get_initial_topography_model())
+                      == nullptr &&
+                      this->get_geometry_model().translate_symbolic_boundary_name_to_id("top") == boundary_indicator)  )
                   {
                     fe_face_values.reinit(cell, face_no);
 
-                    const Tensor<1,dim> normal( fe_face_values.normal_vector(0) ); //Only one q point
+                    const Tensor<1,dim> normal( fe_face_values.normal_vector(0) ); // Only one q point
                     const Point<dim> midpoint = fe_face_values.quadrature_point(0);
                     const Tensor<1,dim> gravity = this->get_gravity_model().gravity_vector(midpoint);
 
-                    indicators(i) = std::acos( std::abs ( normal * gravity / gravity.norm() ) ) //Don't care whether gravity is in the opposite direction
-                                    * std::pow( cell->diameter(), double(dim-1)); //scale with approximate surface area of the cell
-                    break;  //no need to loop over the rest of the faces
+                    indicators(i) = std::acos( std::abs ( normal * gravity / gravity.norm() ) ) // Don't care whether gravity is in the opposite direction
+                                    * std::pow( cell->diameter(), double(dim-1)); // scale with approximate surface area of the cell
+                    break;  // no need to loop over the rest of the faces
                   }
               }
 
@@ -84,13 +91,14 @@ namespace aspect
     ASPECT_REGISTER_MESH_REFINEMENT_CRITERION(Slope,
                                               "slope",
                                               "A class that implements a mesh refinement criterion intended for "
-                                              "use with a free surface. It calculates a local slope based on "
+                                              "use with deforming mesh boundaries, like the free surface. "
+                                              "It calculates a local slope based on "
                                               "the angle between the surface normal and the local gravity vector. "
                                               "Cells with larger angles are marked for refinement."
                                               "\n\n"
                                               "To use this refinement criterion, you may want to combine "
                                               "it with other refinement criteria, setting the 'Normalize "
-                                              "individual refinement criteria' flag and using the 'max' "
+                                              "individual refinement criteria' flag and using the `max' "
                                               "setting for 'Refinement criteria merge operation'.")
   }
 }

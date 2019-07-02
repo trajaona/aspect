@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2014 by the authors of the ASPECT code.
+  Copyright (C) 2014 - 2017 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,13 +14,13 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
 
-#ifndef __aspect__heating_model_function_h
-#define __aspect__heating_model_function_h
+#ifndef _aspect_heating_model_function_h
+#define _aspect_heating_model_function_h
 
 #include <aspect/simulator_access.h>
 #include <aspect/heating_model/interface.h>
@@ -53,11 +53,10 @@ namespace aspect
          * object.
          */
         virtual
-        double
-        specific_heating_rate (const double,
-                               const double,
-                               const std::vector<double> &,
-                               const Point<dim> &) const;
+        void
+        evaluate (const MaterialModel::MaterialModelInputs<dim> &material_model_inputs,
+                  const MaterialModel::MaterialModelOutputs<dim> &material_model_outputs,
+                  HeatingModel::HeatingModelOutputs &heating_model_outputs) const;
 
         /**
          * A function that is called at the beginning of each time step to

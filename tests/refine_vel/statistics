@@ -1,31 +1,23 @@
 # 1: Time step number
 # 2: Time (seconds)
-# 3: Number of mesh cells
-# 4: Number of Stokes degrees of freedom
-# 5: Number of temperature degrees of freedom
-# 6: Iterations for temperature solver
-# 7: Iterations for Stokes solver
-# 8: Velocity iterations in Stokes preconditioner
-# 9: Schur complement iterations in Stokes preconditioner
-# 10: Time step size (seconds)
-# 11: Visualization file name
-# 12: RMS velocity (m/s)
-# 13: Max. velocity (m/s)
-# 14: Minimal temperature (K)
-# 15: Average temperature (K)
-# 16: Maximal temperature (K)
-# 17: Outward heat flux through boundary with indicator 0 ("inner") (W)
-# 18: Outward heat flux through boundary with indicator 1 ("outer") (W)
-# 19: Outward heat flux through boundary with indicator 2 ("left") (W)
-# 20: Outward heat flux through boundary with indicator 3 ("right") (W)
- 0 0.0000e+00  768  7235 3201  0 36 49 14 1.5707e+13 output-refine_vel/solution-00000 1.20110187e-09 3.64047076e-09  0.00000000e+00 1.00406755e+02 1.61300000e+03 -1.19689261e-01 -2.65659313e-01 -1.00387897e-07 -1.00387897e-07 
- 1 1.5707e+13  882  8615 3812 19 34 35 20 7.6173e+12 output-refine_vel/solution-00001 1.25878767e-09 3.73649252e-09 -2.00292534e+02 1.01809428e+02 1.61300000e+03 -1.16995615e-01 -2.64298543e-01 -1.32559691e-06 -8.53336359e-06 
- 2 2.3324e+13  882  8615 3812 12 33 28 16 7.5473e+12 output-refine_vel/solution-00002 1.28777905e-09 3.78769635e-09 -1.99046006e+02 1.02797554e+02 1.61300000e+03 -1.14745658e-01 -2.62734015e-01 -2.30841915e-06 -1.45330801e-05 
- 3 3.0871e+13  951  9322 4125 12 33 29 16 7.4926e+12 output-refine_vel/solution-00003 1.31709484e-09 3.83463377e-09 -1.97762595e+02 1.03734837e+02 1.61300000e+03 -1.12570034e-01 -2.61495969e-01 -3.35869190e-06 -1.90214496e-05 
- 4 3.8364e+13  951  9322 4125 12 33 29 16 7.4514e+12 output-refine_vel/solution-00004 1.34660063e-09 3.87292909e-09 -1.96995222e+02 1.04697525e+02 1.61300000e+03 -1.10536515e-01 -2.60011331e-01 -4.41611295e-06 -2.28456331e-05 
- 5 4.5815e+13 1029 10113 4475 12 33 28 16 7.4216e+12 output-refine_vel/solution-00005 1.37626438e-09 3.91526003e-09 -1.97484747e+02 1.05584208e+02 1.61300000e+03 -1.08641672e-01 -2.59039870e-01 -5.46211463e-06 -3.31818778e-05 
- 6 5.3237e+13 1029 10113 4475 12 33 28 16 7.3590e+12 output-refine_vel/solution-00006 1.40604868e-09 3.95061062e-09 -1.97008597e+02 1.06489728e+02 1.61300000e+03 -1.06901363e-01 -2.57804960e-01 -6.49090380e-06 -3.62737563e-05 
- 7 6.0596e+13 1107 10868 4809 13 34 39 20 7.1271e+12 output-refine_vel/solution-00007 1.43576234e-09 3.99336239e-09 -2.01799033e+02 1.07302022e+02 1.61300000e+03 -1.05381216e-01 -2.56889480e-01 -1.38681504e-05 -3.89158446e-05 
- 8 6.7723e+13 1107 10868 4809 12 34 36 20 7.0788e+12 output-refine_vel/solution-00008 1.46470805e-09 4.01894927e-09 -2.01589036e+02 1.08076271e+02 1.61300000e+03 -1.04113411e-01 -2.55849631e-01 -1.46736026e-05 -4.11104124e-05 
- 9 7.4802e+13 1206 11877 5256 14 35 51 24 7.0172e+12 output-refine_vel/solution-00009 1.49384842e-09 4.05837026e-09 -2.01484814e+02 1.08731140e+02 1.61300000e+03 -1.03180361e-01 -2.54873057e-01 -1.54647222e-05 -4.29249206e-05 
-10 8.1819e+13 1206 11877 5256 13 33 32 16 6.9700e+12 output-refine_vel/solution-00010 1.52278038e-09 4.08673056e-09 -2.01412272e+02 1.09287715e+02 1.61300000e+03 -1.02707151e-01 -2.53955610e-01 -1.62348864e-05 -4.44924305e-05 
+# 3: Time step size (seconds)
+# 4: Number of mesh cells
+# 5: Number of Stokes degrees of freedom
+# 6: Number of temperature degrees of freedom
+# 7: Iterations for temperature solver
+# 8: Iterations for Stokes solver
+# 9: Velocity iterations in Stokes preconditioner
+# 10: Schur complement iterations in Stokes preconditioner
+# 11: RMS velocity (m/s)
+# 12: Max. velocity (m/s)
+# 13: Minimal temperature (K)
+# 14: Average temperature (K)
+# 15: Maximal temperature (K)
+# 16: Outward heat flux through boundary with indicator 0 ("bottom") (W)
+# 17: Outward heat flux through boundary with indicator 1 ("top") (W)
+# 18: Outward heat flux through boundary with indicator 2 ("left") (W)
+# 19: Outward heat flux through boundary with indicator 3 ("right") (W)
+0 0.000000000000e+00 0.000000000000e+00 768 7235 3201  0 45 47  46 1.20140362e-09 3.64093543e-09  0.00000000e+00 1.00295466e+02 1.61300000e+03 -3.29108493e+05 -5.47394611e+04 0.00000000e+00 0.00000000e+00 
+1 1.570505628058e+13 1.570505628058e+13 867 8441 3735 26 41 43 172 1.25865240e-09 3.73750409e-09 -2.17543571e+02 1.00530762e+02 1.61300000e+03 -9.25174027e+04 -7.15494288e+04 0.00000000e+00 0.00000000e+00 
+2 2.332597269315e+13 7.620916412569e+12 867 8441 3735 15 34 36 144 1.28821172e-09 3.79528689e-09 -2.22782731e+02 1.00663937e+02 1.61300000e+03 -1.04514940e+05 -6.93748156e+04 0.00000000e+00 0.00000000e+00 
+3 3.086558966924e+13 7.539616976084e+12 921 9051 4004 14 35 37 148 1.31816368e-09 3.84927447e-09 -2.24983507e+02 1.00804050e+02 1.61300000e+03 -1.35231244e+05 -5.73282427e+04 0.00000000e+00 0.00000000e+00 

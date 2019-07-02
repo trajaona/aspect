@@ -7,14 +7,17 @@
 
 INCLUDE (CheckCXXSourceRuns)
 
+SET(_backup_flags ${CMAKE_REQUIRED_FLAGS})
 SET(_backup_libs ${CMAKE_REQUIRED_LIBRARIES})
-SET(_backup_includes ${CMAKE_REQUIRED_LIBRARIES})
+SET(_backup_includes ${CMAKE_REQUIRED_INCLUDES})
+
 SET(_build "RELEASE")
 STRING(TOLOWER "${CMAKE_BUILD_TYPE}" _cmake_build_type)
 IF("${_cmake_build_type}" MATCHES "debug")
   SET(_build "DEBUG")
 ENDIF()
 
+LIST(APPEND CMAKE_REQUIRED_FLAGS "${DEAL_II_CXX_FLAGS} ${DEAL_II_CXX_FLAGS_${_build}}")
 LIST(APPEND CMAKE_REQUIRED_LIBRARIES ${DEAL_II_TARGET_${_build}})
 LIST(APPEND CMAKE_REQUIRED_INCLUDES ${DEAL_II_INCLUDE_DIRS})
 
@@ -27,7 +30,13 @@ CHECK_CXX_SOURCE_RUNS("
 
 int main()
 {
+  // Some implementations seem to not initialize the FPE bits to zero.
+  // Make sure we start from a clean state
+  feclearexcept(FE_DIVBYZERO|FE_INVALID);
+
+  // Enable floating point exceptions
   feenableexcept(FE_DIVBYZERO|FE_INVALID);
+
   std::ostringstream description;
   const double lower_bound = -std::numeric_limits<double>::max();
 
@@ -38,5 +47,7 @@ int main()
 }
 " HAVE_FP_EXCEPTIONS)
 
+
+SET(CMAKE_REQUIRED_FLAGS ${_backup_flags})
 SET(CMAKE_REQUIRED_LIBRARIES ${_backup_libs})
 SET(CMAKE_REQUIRED_INCLUDES ${_backup_includes})

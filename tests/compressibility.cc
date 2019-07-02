@@ -104,7 +104,7 @@ namespace aspect
     {
       // create a quadrature formula based on the temperature element alone.
       // be defensive about determining that what we think is the temperature
-      // element, is it in fact
+      // element is indeed the temperature element
       Assert (this->get_fe().n_base_elements() == 3+(this->n_compositional_fields()>0 ? 1 : 0),
               ExcNotImplemented());
       const QGauss<dim-1> quadrature_formula (this->get_fe().base_element(2).degree+1);
@@ -112,8 +112,8 @@ namespace aspect
       FEFaceValues<dim> fe_face_values (this->get_mapping(),
                                         this->get_fe(),
                                         quadrature_formula,
-                                        update_gradients      | update_values |
-                                        update_q_points       | update_JxW_values);
+                                        update_gradients         | update_values |
+                                        update_quadrature_points | update_JxW_values);
 
       std::vector<std::vector<double> > composition_values (this->n_compositional_fields(),std::vector<double> (quadrature_formula.size()));
       std::vector<Tensor<1,dim> > velocity_values(quadrature_formula.size());
@@ -134,9 +134,9 @@ namespace aspect
           for (unsigned int f=0; f<2*dim; ++f)
             if (cell->at_boundary(f)
                 &&
-                ((cell->face(f)->boundary_indicator() == 2)
+                ((cell->face(f)->boundary_id() == 2)
                  ||
-                 (cell->face(f)->boundary_indicator() == 3)))
+                 (cell->face(f)->boundary_id() == 3)))
               {
                 fe_face_values.reinit (cell,f);
                 fe_face_values[this->introspection().extractors.temperature].get_function_values (this->get_solution(),
@@ -160,10 +160,10 @@ namespace aspect
 
                 this->get_material_model().evaluate(in, out);
 
-                if (cell->face(f)->boundary_indicator() == 2)
+                if (cell->face(f)->boundary_id() == 2)
                   for (unsigned int q=0; q<fe_face_values.n_quadrature_points; ++q)
                     bottom_flux_integral += out.densities[q] * velocity_values[q][1] * fe_face_values.JxW(q);
-                if (cell->face(f)->boundary_indicator() == 3)
+                if (cell->face(f)->boundary_id() == 3)
                   for (unsigned int q=0; q<fe_face_values.n_quadrature_points; ++q)
                     top_flux_integral += out.densities[q] * velocity_values[q][1] * fe_face_values.JxW(q);
               }

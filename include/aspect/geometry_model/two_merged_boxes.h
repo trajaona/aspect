@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2015 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,15 +14,15 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
 
-#ifndef __aspect__geometry_model_two_merged_boxes_h
-#define __aspect__geometry_model_two_merged_boxes_h
+#ifndef _aspect_geometry_model_two_merged_boxes_h
+#define _aspect_geometry_model_two_merged_boxes_h
 
-#include <aspect/geometry_model/interface.h>
+#include <aspect/geometry_model/box.h>
 
 
 namespace aspect
@@ -37,7 +37,7 @@ namespace aspect
      * for the lithospheric part of the vertical boundaries.
      */
     template <int dim>
-    class TwoMergedBoxes : public Interface<dim>
+    class TwoMergedBoxes : public Box<dim>
     {
       public:
 
@@ -139,6 +139,38 @@ namespace aspect
         virtual
         bool
         has_curved_elements() const;
+
+        /**
+         * Return whether the given point lies within the domain specified
+         * by the geometry. This function does not take into account
+         * initial or dynamic surface topography.
+         */
+        virtual
+        bool
+        point_is_in_domain(const Point<dim> &point) const;
+
+        /*
+         * Returns what the natural coordinate system for this geometry model is,
+         * which for two merged boxex is Cartesian.
+         */
+        virtual
+        aspect::Utilities::Coordinates::CoordinateSystem natural_coordinate_system() const;
+
+        /**
+         * Takes the Cartesian points (x,z or x,y,z) and returns standardized
+         * coordinates which are most 'natural' to the geometry model. For a box
+         * the results is unchanged and is (x,z) in 2d or (x,y,z) in 3d.
+         */
+        virtual
+        std::array<double,dim> cartesian_to_natural_coordinates(const Point<dim> &position) const;
+
+        /**
+         * Undoes the action of cartesian_to_natural_coordinates, and turns the
+         * coordinate system which is most 'natural' to the geometry model into
+         * Cartesian coordinates.
+         */
+        virtual
+        Point<dim> natural_to_cartesian_coordinates(const std::array<double,dim> &position) const;
 
         /**
          * Declare the parameters this class takes through input files.

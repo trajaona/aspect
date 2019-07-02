@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2015 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,19 +14,20 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
 
 #include <aspect/geometry_model/two_merged_boxes.h>
+#include <aspect/geometry_model/initial_topography_model/zero_topography.h>
 
 #include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/tria_iterator.h>
 #include <deal.II/grid/tria_accessor.h>
 #include <deal.II/grid/grid_tools.h>
 
-#include <deal.II/base/std_cxx1x/bind.h>
+#include <functional>
 
 namespace aspect
 {
@@ -48,49 +49,29 @@ namespace aspect
           // first set the default boundary indicators
           for (unsigned int f=0; f<GeometryInfo<dim>::faces_per_cell; ++f)
             if (cell->face(f)->at_boundary())
-#if DEAL_II_VERSION_GTE(8,3,0)
               cell->face(f)->set_boundary_id (f);
-#else
-              cell->face(f)->set_boundary_indicator (f);
-#endif
 
           if (cell->face(0)->at_boundary())
             // set the lithospheric part of the left boundary to indicator 2*dim
             if (cell->face(0)->vertex(GeometryInfo<dim-1>::vertices_per_cell-1)[dim-1] > height_lith)
-#if DEAL_II_VERSION_GTE(8,3,0)
               cell->face(0)->set_boundary_id (2*dim);
-#else
-              cell->face(0)->set_boundary_indicator (2*dim);
-#endif
 
           if (cell->face(1)->at_boundary())
             // set the lithospheric part of the right boundary to indicator 2*dim+1
             if (cell->face(1)->vertex(GeometryInfo<dim-1>::vertices_per_cell-1)[dim-1] > height_lith)
-#if DEAL_II_VERSION_GTE(8,3,0)
               cell->face(1)->set_boundary_id (2*dim+1);
-#else
-              cell->face(1)->set_boundary_indicator (2*dim+1);
-#endif
 
           if (dim==3)
             {
               // set the lithospheric part of the front boundary to indicator 2*dim+2
               if (cell->face(2)->at_boundary())
                 if (cell->face(2)->vertex(GeometryInfo<dim-1>::vertices_per_cell-1)[dim-1] > height_lith)
-#if DEAL_II_VERSION_GTE(8,3,0)
                   cell->face(2)->set_boundary_id (2*dim+2);
-#else
-                  cell->face(2)->set_boundary_indicator (2*dim+2);
-#endif
 
               // set the lithospheric part of the back boundary to indicator 2*dim+3
               if (cell->face(3)->at_boundary())
                 if (cell->face(3)->vertex(GeometryInfo<dim-1>::vertices_per_cell-1)[dim-1] > height_lith)
-#if DEAL_II_VERSION_GTE(8,3,0)
                   cell->face(3)->set_boundary_id (2*dim+3);
-#else
-                  cell->face(3)->set_boundary_indicator (2*dim+3);
-#endif
             }
         }
     }
@@ -145,10 +126,11 @@ namespace aspect
 
       // make sure the right boundary indicators are set after refinement
       // through the function set_boundary_indicators above
-      total_coarse_grid.signals.post_refinement.connect
-      (std_cxx1x::bind (&TwoMergedBoxes<dim>::set_boundary_indicators,
-                        std_cxx1x::cref(*this),
-                        std_cxx1x::ref(total_coarse_grid)));
+      total_coarse_grid.signals.post_refinement.connect (
+        [&]()
+      {
+        this->set_boundary_indicators(total_coarse_grid);
+      });
     }
 
 
@@ -254,21 +236,7 @@ namespace aspect
     TwoMergedBoxes<dim>::depth(const Point<dim> &position) const
     {
       const double d = maximal_depth()-(position(dim-1)-lower_box_origin[dim-1]);
-
-      // if we violate the bounds, check that we do so only very slightly and
-      // then just return maximal or minimal depth
-      if (d < 0)
-        {
-          Assert (d >= -1e-14*std::fabs(maximal_depth()), ExcInternalError());
-          return 0;
-        }
-      if (d > maximal_depth())
-        {
-          Assert (d <= (1.+1e-14)*maximal_depth(), ExcInternalError());
-          return maximal_depth();
-        }
-
-      return d;
+      return std::min (std::max (d, 0.), maximal_depth());
     }
 
 
@@ -303,6 +271,62 @@ namespace aspect
       return false;
     }
 
+
+
+    template <int dim>
+    bool
+    TwoMergedBoxes<dim>::point_is_in_domain(const Point<dim> &point) const
+    {
+      AssertThrow(!this->get_parameters().mesh_deformation_enabled == 0 ||
+                  this->simulator_is_past_initialization() == false,
+                  ExcMessage("After displacement of the mesh, this function can no longer be used to determine whether a point lies in the domain or not."));
+
+      AssertThrow(dynamic_cast<const InitialTopographyModel::ZeroTopography<dim>*>(&this->get_initial_topography_model()) != nullptr,
+                  ExcMessage("After adding topography, this function can no longer be used to determine whether a point lies in the domain or not."));
+
+      for (unsigned int d = 0; d < dim; d++)
+        if (point[d] > extents[d]+lower_box_origin[d]+std::numeric_limits<double>::epsilon()*extents[d] ||
+            point[d] < lower_box_origin[d]-std::numeric_limits<double>::epsilon()*extents[d])
+          return false;
+
+      return true;
+    }
+
+
+    template <int dim>
+    aspect::Utilities::Coordinates::CoordinateSystem
+    TwoMergedBoxes<dim>::natural_coordinate_system() const
+    {
+      return aspect::Utilities::Coordinates::CoordinateSystem::cartesian;
+    }
+
+
+    template <int dim>
+    std::array<double,dim>
+    TwoMergedBoxes<dim>::cartesian_to_natural_coordinates(const Point<dim> &position_point) const
+    {
+      std::array<double,dim> position_array;
+      for (unsigned int i = 0; i < dim; i++)
+        position_array[i] = position_point(i);
+
+      return position_array;
+    }
+
+
+
+    template <int dim>
+    Point<dim>
+    TwoMergedBoxes<dim>::natural_to_cartesian_coordinates(const std::array<double,dim> &position_tensor) const
+    {
+      Point<dim> position_point;
+      for (unsigned int i = 0; i < dim; i++)
+        position_point[i] = position_tensor[i];
+
+      return position_point;
+    }
+
+
+
     template <int dim>
     void
     TwoMergedBoxes<dim>::
@@ -321,26 +345,26 @@ namespace aspect
           // Total box extents
           prm.declare_entry ("X extent", "1",
                              Patterns::Double (0),
-                             "Extent of the box in x-direction. Units: m.");
+                             "Extent of the box in x-direction. Units: $\\si{m}$.");
           prm.declare_entry ("Y extent", "1",
                              Patterns::Double (0),
-                             "Extent of the box in y-direction. Units: m.");
+                             "Extent of the box in y-direction. Units: $\\si{m}$.");
           prm.declare_entry ("Z extent", "1",
                              Patterns::Double (0),
                              "Extent of the box in z-direction. This value is ignored "
-                             "if the simulation is in 2d. Units: m.");
+                             "if the simulation is in 2d. Units: $\\si{m}$.");
 
           // Total box origin
           prm.declare_entry ("Box origin X coordinate", "0",
                              Patterns::Double (),
-                             "X coordinate of box origin. Units: m.");
+                             "X coordinate of box origin. Units: $\\si{m}$.");
           prm.declare_entry ("Box origin Y coordinate", "0",
                              Patterns::Double (),
-                             "Y coordinate of box origin. Units: m.");
+                             "Y coordinate of box origin. Units: $\\si{m}$.");
           prm.declare_entry ("Box origin Z coordinate", "0",
                              Patterns::Double (),
                              "Z coordinate of box origin. This value is ignored "
-                             "if the simulation is in 2d. Units: m.");
+                             "if the simulation is in 2d. Units: $\\si{m}$.");
 
           // Lower box repetitions
           prm.declare_entry ("X repetitions", "1",
@@ -473,7 +497,7 @@ namespace aspect
                                    "indicators 0 through 5 indicate left, right, front, back, bottom "
                                    "and top boundaries (see also the documentation of the deal.II class "
                                    "``GeometryInfo''), while indicators 6, 7, 8 and 9 denote the left, "
-                                   "rigth, front and back upper parts of the vertical boundaries, respectively. "
+                                   "right, front and back upper parts of the vertical boundaries, respectively. "
                                    "You can also use symbolic names ``left'', ``right'', "
                                    "``left lithosphere'', etc., to refer to these boundaries in input files."
                                    "\n\n"

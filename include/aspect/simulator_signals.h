@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2015 by the authors of the ASPECT code.
+  Copyright (C) 2015 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,25 +14,33 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
 
-#ifndef __aspect__simulator_signals_h
-#define __aspect__simulator_signals_h
+#ifndef _aspect_simulator_signals_h
+#define _aspect_simulator_signals_h
 
 #include <aspect/global.h>
 #include <aspect/simulator_access.h>
 #include <aspect/parameters.h>
 
 #include <deal.II/base/parameter_handler.h>
-#include <deal.II/lac/constraint_matrix.h>
 
 #include <boost/signals2.hpp>
 
 namespace aspect
 {
+  namespace Assemblers
+  {
+    template <int dim>
+    class Manager;
+
+    template <int dim>
+    class Interface;
+  }
+
   /**
    * A class that collects the definition of signals that can be triggered
    * at different points in a computation. A signal is in essence an event
@@ -44,8 +52,7 @@ namespace aspect
    * not actually just pointers to functions, but std::function objects
    * that have a certain signature. Consequently, they can have much more
    * complicated types than just function pointers, such as objects with
-   * an <code>operator()</code> or function calls treated with things
-   * like std::bind.
+   * an <code>operator()</code> or lambda functions.
    *
    * The documentation of each of the signals below indicates when
    * exactly it is called.
@@ -55,6 +62,35 @@ namespace aspect
   template <int dim>
   struct SimulatorSignals
   {
+    /**
+     * A signal that is called before the list of finite element variables is
+     * used to construct the Introspection class.
+     *
+     * The functions (slots) that can attach to this signal need to
+     * take one argument: A std::vector of VariableDeclaration<dim>
+     * representing the collection of finite element variables,
+     * that can be modified and will be used to construct the
+     * final finite element system later.
+     */
+    boost::signals2::signal<void (std::vector<VariableDeclaration<dim> > &)>
+    edit_finite_element_variables;
+
+    /**
+     * A signal that is called before setting up the initial conditions.
+     *
+     * The functions (slots) that can attach to this signal need to take one
+     * argument: A SimulatorAccess object that describes the simulator.
+     */
+    boost::signals2::signal<void (typename parallel::distributed::Triangulation<dim> &)>  pre_set_initial_state;
+
+    /**
+     * A signal that is called after setting up the initial conditions.
+     *
+     * The functions (slots) that can attach to this signal need to take one
+     * argument: A SimulatorAccess object that describes the simulator.
+     */
+    boost::signals2::signal<void (const SimulatorAccess<dim> &)>  post_set_initial_state;
+
     /**
      * A signal that is called at the end of setting up the
      * constraints for the current time step. This allows to add
@@ -70,18 +106,94 @@ namespace aspect
                                   ConstraintMatrix &)>  post_constraints_creation;
 
     /**
-    * A signal that is called at the start of setup_dofs().
-    * This allows for editing of the parameters struct on the fly
-    * (such as changing boundary conditions) to give Aspect different behavior
-    * in mid-run than it otherwise would have.
-
-    * The functions that connect to this signal must take two arguments,
-    * a SimulatorAccess object that describes the simulator, and an object
-    * of type aspect::Parameters<dim>, which is the current parameters
-    * object that the simulator is working with.
-    */
+     * A signal that is called at the start of setup_dofs(). This allows for
+     * editing of the parameters struct on the fly (such as changing boundary
+     * conditions) to give Aspect different behavior in mid-run than it
+     * otherwise would have.
+     *
+     * The functions that connect to this signal must take two arguments, a
+     * SimulatorAccess object that describes the simulator, and an object of
+     * type aspect::Parameters<dim>, which is the current parameters object
+     * that the simulator is working with.
+     */
     boost::signals2::signal<void (const SimulatorAccess<dim> &,
                                   Parameters<dim> &parameters)>  edit_parameters_pre_setup_dofs;
+
+    /**
+     * A signal that is called before every mesh_refinement. This signal
+     * allows for registering functions that store data that is related to
+     * mesh cells and needs to be transferred with the cells during the
+     * repartitioning.
+     *
+     * The functions that connect to this signal must take a reference to a
+     * parallel::distributed::Triangulation object as argument. This argument
+     * will point to the triangulation used by the Simulator class.
+     */
+    boost::signals2::signal<void (typename parallel::distributed::Triangulation<dim> &)>  pre_refinement_store_user_data;
+
+    /**
+     * A signal that is called after every mesh_refinement.  This signal
+     * allows for registering functions that load data related to mesh cells
+     * and that was transferred with the cells during the repartitioning.
+     *
+     * The functions that connect to this signal must take a reference to a
+     * parallel::distributed::Triangulation object as argument. This argument
+     * will point to the triangulation used by the Simulator class.
+     */
+    boost::signals2::signal<void (typename parallel::distributed::Triangulation<dim> &)>  post_refinement_load_user_data;
+
+    /**
+     * A signal that is called before the computation of tangential boundary
+     * conditions for which normal vectors are needed, i.e. calls to the
+     * compute_no_normal_flux_constraints function for both the
+     * velocity variable in the main simulator and the mesh velocity
+     * variable in models with mesh deformation.
+     *
+     * The functions that connect to this signal must take a reference
+     * to a parallel::distributed::Triangulation object as
+     * argument. This argument will point to the triangulation used by
+     * the Simulator class.
+     */
+    boost::signals2::signal<void (typename parallel::distributed::Triangulation<dim> &)>  pre_compute_no_normal_flux_constraints;
+
+    /**
+     * A signal that is called after the computation of tangential boundary
+     * conditions for which normal vectors are needed, i.e. calls to the
+     * compute_no_normal_flux_constraints function for both the
+     * velocity variable in the main simulator and the mesh velocity
+     * variable in models with mesh deformation.
+     *
+     * The functions that connect to this signal must take a reference
+     * to a parallel::distributed::Triangulation object as
+     * argument. This argument will point to the triangulation used by
+     * the Simulator class.
+     */
+    boost::signals2::signal<void (typename parallel::distributed::Triangulation<dim> &)>  post_compute_no_normal_flux_constraints;
+
+    /**
+     * A signal that is called before the creation of every checkpoint.  This
+     * signal allows for registering functions that store data related to mesh
+     * cells.
+     *
+     * The functions that connect to this signal must take a reference to a
+     * parallel::distributed::Triangulation object as argument. This argument
+     * will point to the triangulation used by the Simulator class.
+     */
+    boost::signals2::signal<void (typename parallel::distributed::Triangulation<dim> &)>  pre_checkpoint_store_user_data;
+
+    /**
+     * A signal that is called after resuming from a checkpoint.  This signal
+     * allows for registering functions that load data related to mesh cells
+     * that was previously stored in the checkpoint.  Note that before calling
+     * Triangulation::notify_ready_to_unpack() the function needs to call
+     * register_attach_data() with the appropriate arguments to restore the
+     * state of the triangulation.
+     *
+     * The functions that connect to this signal must take a reference to a
+     * parallel::distributed::Triangulation object as argument. This argument
+     * will point to the triangulation used by the Simulator class.
+     */
+    boost::signals2::signal<void (typename parallel::distributed::Triangulation<dim> &)>  post_resume_load_user_data;
 
     /**
      * A signal that is called at the beginning of the program. It
@@ -112,15 +224,39 @@ namespace aspect
                                          ParameterHandler &)>  parse_additional_parameters;
 
     /**
-      * A signal that is fired when the iterative Stokes solver is
-      * done. Parameters are a reference to the SimulatorAccess, a bool
-      * indicating success or failure, and a vector with linear residuals in
-      * each solver step. If the solver switches from the cheap to the expensive
-      * solver, a -1.0 is inserted.
-      */
+     * A signal that is fired when the iterative Stokes solver is done.
+     * Parameters are a reference to the SimulatorAccess, the number of
+     * preconditioner inner solver iterations for the S and A block of the
+     * system, and two information objects that contain information
+     * about the success of the solve, the number of outer GMRES iterations
+     * and the residual history for the cheap and expensive solver phase.
+     */
     boost::signals2::signal<void (const SimulatorAccess<dim> &,
-                                  const bool,
-                                  const std::vector<double> &)> post_stokes_solver;
+                                  const unsigned int number_S_iterations,
+                                  const unsigned int number_A_iterations,
+                                  const SolverControl &solver_control_cheap,
+                                  const SolverControl &solver_control_expensive)> post_stokes_solver;
+
+    /**
+     * A signal that is fired when the iterative advection solver is done.
+     * Parameters are a reference to the SimulatorAccess, a bool indicating
+     * whether the temperature field or a compositional field was solved,
+     * a composition index that describes which compositional field
+     * was solved, and an information object that contains information
+     * about the number of iterations and history of residuals.
+     */
+    boost::signals2::signal<void (const SimulatorAccess<dim> &,
+                                  const bool solved_temperature_field,
+                                  const unsigned int compositional_index,
+                                  const SolverControl &solver_control)> post_advection_solver;
+
+    /**
+     * A signal that is fired at the end of the set_assemblers() function that
+     * allows modification of the assembly objects active in this simulation.
+     */
+    boost::signals2::signal<void (const SimulatorAccess<dim> &,
+                                  aspect::Assemblers::Manager<dim> &)>
+    set_assemblers;
   };
 
 
@@ -137,17 +273,18 @@ namespace aspect
        * of functions that the Simulator object will later go through when
        * letting plugins connect their slots to signals.
        */
-      void register_connector_function_2d (const std_cxx11::function<void (aspect::SimulatorSignals<2> &)> &connector);
-      void register_connector_function_3d (const std_cxx11::function<void (aspect::SimulatorSignals<3> &)> &connector);
+      void register_connector_function_2d (const std::function<void (aspect::SimulatorSignals<2> &)> &connector);
+      void register_connector_function_3d (const std::function<void (aspect::SimulatorSignals<3> &)> &connector);
 
       /**
-       * Two functions that are called by the Simulator object and that go through
-       * the lists created by the previous pair of functions and call each of the
-       * user-provided connector functions to let them register their slots
-       * with the corresponding signals.
+       * A function that is called by the Simulator object and that goes
+       * through the list (with the corresponding dimension) created by the
+       * previous pair of functions and call each of the user-provided
+       * connector functions to let them register their slots with the
+       * corresponding signals.
        */
-      void call_connector_functions (aspect::SimulatorSignals<2> &signals);
-      void call_connector_functions (aspect::SimulatorSignals<3> &signals);
+      template <int dim>
+      void call_connector_functions (aspect::SimulatorSignals<dim> &signals);
     }
   }
 

@@ -2,6 +2,8 @@
 set Dimension   = 2
 set End time    = 0
 
+set Output directory = output-circle
+
 # Load the signal library.
 set Additional shared libraries = ./libprescribed_velocity.so
 
@@ -9,11 +11,11 @@ subsection Geometry model
   set Model name = box
 end
 
-subsection Initial conditions
+subsection Initial temperature model
   set Model name = function
 end
 
-subsection Model settings
+subsection Boundary velocity model
   set Zero velocity boundary indicators = top, bottom, left, right
 end
 

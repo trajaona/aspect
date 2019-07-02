@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2015 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2017 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,7 +14,7 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
@@ -35,19 +35,15 @@ namespace aspect
     template <int dim>
     double
     Box<dim>::
-    temperature (const GeometryModel::Interface<dim> &geometry_model,
-                 const types::boundary_id             boundary_indicator,
-                 const Point<dim> &) const
+    boundary_temperature (const types::boundary_id boundary_indicator,
+                          const Point<dim> &/*position*/) const
     {
-      (void)geometry_model;
-
-      // verify that the geometry is in fact a box since only
-      // for this geometry do we know for sure what boundary indicators it
-      // uses and what they mean
-      Assert (dynamic_cast<const GeometryModel::Box<dim>*>(&geometry_model)
-              != 0,
+      // verify that the geometry is a box since only for this geometry
+      // do we know for sure what boundary indicators it uses and what they mean
+      Assert (dynamic_cast<const GeometryModel::Box<dim>*>(&this->get_geometry_model())
+              != nullptr,
               ExcMessage ("This boundary model is only implemented if the geometry is "
-                          "in fact a box."));
+                          "a box."));
 
       Assert (boundary_indicator<2*dim, ExcMessage ("Given boundary indicator needs to be less than 2*dimension."));
       return temperature_[boundary_indicator];
@@ -104,24 +100,24 @@ namespace aspect
         {
           prm.declare_entry ("Left temperature", "1",
                              Patterns::Double (),
-                             "Temperature at the left boundary (at minimal x-value). Units: K.");
+                             "Temperature at the left boundary (at minimal $x$-value). Units: $\\si{K}$.");
           prm.declare_entry ("Right temperature", "0",
                              Patterns::Double (),
-                             "Temperature at the right boundary (at maximal x-value). Units: K.");
+                             "Temperature at the right boundary (at maximal $x$-value). Units: $\\si{K}$.");
           prm.declare_entry ("Bottom temperature", "0",
                              Patterns::Double (),
-                             "Temperature at the bottom boundary (at minimal z-value). Units: K.");
+                             "Temperature at the bottom boundary (at minimal $z$-value). Units: $\\si{K}$.");
           prm.declare_entry ("Top temperature", "0",
                              Patterns::Double (),
-                             "Temperature at the top boundary (at maximal x-value). Units: K.");
+                             "Temperature at the top boundary (at maximal $x$-value). Units: $\\si{K}$.");
           if (dim==3)
             {
               prm.declare_entry ("Front temperature", "0",
                                  Patterns::Double (),
-                                 "Temperature at the front boundary (at minimal y-value). Units: K.");
+                                 "Temperature at the front boundary (at minimal $y$-value). Units: $\\si{K}$.");
               prm.declare_entry ("Back temperature", "0",
                                  Patterns::Double (),
-                                 "Temperature at the back boundary (at maximal y-value). Units: K.");
+                                 "Temperature at the back boundary (at maximal $y$-value). Units: $\\si{K}$.");
             }
         }
         prm.leave_subsection ();
@@ -177,6 +173,7 @@ namespace aspect
     ASPECT_REGISTER_BOUNDARY_TEMPERATURE_MODEL(Box,
                                                "box",
                                                "A model in which the temperature is chosen constant on "
-                                               "all the sides of a box.")
+                                               "the sides of a box which are selected by the parameters "
+                                               "Left/Right/Top/Bottom/Front/Back temperature")
   }
 }

@@ -1,13 +1,13 @@
 # 1: Time step number
 # 2: Time (seconds)
-# 3: Number of mesh cells
-# 4: Number of Stokes degrees of freedom
-# 5: Number of temperature degrees of freedom
-# 6: Iterations for temperature solver
-# 7: Iterations for Stokes solver
-# 8: Velocity iterations in Stokes preconditioner
-# 9: Schur complement iterations in Stokes preconditioner
-# 10: Time step size (seconds)
+# 3: Time step size (seconds)
+# 4: Number of mesh cells
+# 5: Number of Stokes degrees of freedom
+# 6: Number of temperature degrees of freedom
+# 7: Iterations for temperature solver
+# 8: Iterations for Stokes solver
+# 9: Velocity iterations in Stokes preconditioner
+# 10: Schur complement iterations in Stokes preconditioner
 # 11: Visualization file name
 # 12: RMS velocity (m/s)
 # 13: Max. velocity (m/s)
@@ -15,9 +15,9 @@
 # 15: Average temperature (K)
 # 16: Maximal temperature (K)
 # 17: Average nondimensional temperature (K)
-# 18: Outward heat flux through boundary with indicator 0 ("inner") (W)
-# 19: Outward heat flux through boundary with indicator 1 ("outer") (W)
+# 18: Outward heat flux through boundary with indicator 0 ("bottom") (W)
+# 19: Outward heat flux through boundary with indicator 1 ("top") (W)
 # 20: Outward heat flux through boundary with indicator 2 ("east") (W)
 # 21: Outward heat flux through boundary with indicator 3 ("west") (W)
 # 22: Outward heat flux through boundary with indicator 4 ("south") (W)
-0 0.0000e+00 24 972 305 0 58 87 85 1.0316e-05 output-symbolic_boundary_names_spherical_shell_3d_90_degrees/solution-00000 1.30128640e+10 3.90631313e+10 0.00000000e+00 2.44298831e+03 6.00000000e+03 4.07164718e-01 -4.29052709e+04 1.22637894e+05 2.92753627e+03 2.92744497e+03 1.09040868e+03 
+0 0.000000000000e+00 0.000000000000e+00 24 972 305 0 80 83 164 output-symbolic_boundary_names_spherical_shell_3d_90_degrees/solution/solution-00000 2.08738638e+09 6.35701546e+09 0.00000000e+00 2.45135387e+03 6.00000000e+03 4.08558979e-01 -9.96845778e+27 -1.77431596e+28 0.00000000e+00 0.00000000e+00 0.00000000e+00 

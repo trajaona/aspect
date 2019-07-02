@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2015 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,13 +14,12 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
 
 #include <aspect/postprocess/stokes_residual.h>
-#include <aspect/simulator_access.h>
 #include <aspect/simulator.h>
 #include <aspect/global.h>
 
@@ -82,18 +81,36 @@ namespace aspect
     }
 
     template <int dim>
-    void StokesResidual<dim>::stokes_solver_callback (const SimulatorAccess<dim> &sim,
-                                                      const bool /*success*/,
-                                                      const std::vector<double> &history)
+    void StokesResidual<dim>::stokes_solver_callback (const SolverControl &solver_control_cheap,
+                                                      const SolverControl &solver_control_expensive)
     {
       unsigned int current_solve_index = 0;
-      if (entries.size()>0 && entries.back().time == sim.get_time())
+      if (entries.size()>0 && entries.back().time == this->get_time())
         current_solve_index = entries.back().solve_index+1;
 
       DataPoint data_point;
-      data_point.time = sim.get_time();
+      data_point.time = this->get_time();
       data_point.solve_index = current_solve_index;
-      data_point.values = history;
+
+      // If there were cheap iterations add them.
+      if (solver_control_cheap.last_step() != numbers::invalid_unsigned_int)
+        {
+          data_point.values = solver_control_cheap.get_history_data();
+        }
+
+      // If there were expensive iterations add them.
+      if (solver_control_expensive.last_step() != numbers::invalid_unsigned_int)
+        {
+          // If there were cheap iterations add the expensive iterations after a signalling -1.
+          if (data_point.values.size() > 0)
+            data_point.values.push_back(-1.0);
+
+          data_point.values.insert(data_point.values.end(),
+                                   solver_control_expensive.get_history_data().begin(),
+                                   solver_control_expensive.get_history_data().end());
+        }
+
+
       entries.push_back(data_point);
     }
 
@@ -102,8 +119,14 @@ namespace aspect
     StokesResidual<dim>::initialize ()
     {
       this->get_signals().post_stokes_solver.connect(
-        std_cxx11::bind(&StokesResidual<dim>::stokes_solver_callback, this, std_cxx11::_1, std_cxx11::_2, std_cxx11::_3)
-      );
+        [&](const SimulatorAccess<dim> &,
+            const unsigned int /*number_S_iterations*/,
+            const unsigned int /*number_A_iterations*/,
+            const SolverControl &solver_control_cheap,
+            const SolverControl &solver_control_expensive)
+      {
+        this->stokes_solver_callback(solver_control_cheap,solver_control_expensive);
+      });
     }
 
     template <int dim>

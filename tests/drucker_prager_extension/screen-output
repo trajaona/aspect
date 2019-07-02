@@ -1,55 +1,48 @@
------------------------------------------------------------------------------
--- This is ASPECT, the Advanced Solver for Problems in Earth's ConvecTion.
---     . version 1.4.pre
---     . running in DEBUG mode
---     . running with 1 MPI process
---     . using Trilinos
------------------------------------------------------------------------------
 
 Number of active cells: 256 (on 4 levels)
 Number of degrees of freedom: 2,804 (2,210+297+297)
 
 *** Timestep 0:  t=0 seconds
-   Solving temperature system... 0 iterations.
+   Skipping temperature solve because RHS is zero.
    Rebuilding Stokes preconditioner...
    Solving Stokes system... 0+14 iterations.
-   Residual after nonlinear iteration 1: 1
+      Relative nonlinear residual (Stokes system) after nonlinear iteration 1: 1
 
    Rebuilding Stokes preconditioner...
    Solving Stokes system... 0+19 iterations.
-   Residual after nonlinear iteration 2: 0.0114772
+      Relative nonlinear residual (Stokes system) after nonlinear iteration 2: 0.0114772
 
    Rebuilding Stokes preconditioner...
    Solving Stokes system... 0+15 iterations.
-   Residual after nonlinear iteration 3: 0.001441
+      Relative nonlinear residual (Stokes system) after nonlinear iteration 3: 0.001441
 
    Rebuilding Stokes preconditioner...
    Solving Stokes system... 0+13 iterations.
-   Residual after nonlinear iteration 4: 0.0011851
+      Relative nonlinear residual (Stokes system) after nonlinear iteration 4: 0.0011851
 
    Rebuilding Stokes preconditioner...
    Solving Stokes system... 0+11 iterations.
-   Residual after nonlinear iteration 5: 0.001193
+      Relative nonlinear residual (Stokes system) after nonlinear iteration 5: 0.00119301
 
    Rebuilding Stokes preconditioner...
    Solving Stokes system... 0+12 iterations.
-   Residual after nonlinear iteration 6: 0.00153361
+      Relative nonlinear residual (Stokes system) after nonlinear iteration 6: 0.0015339
 
    Rebuilding Stokes preconditioner...
    Solving Stokes system... 0+11 iterations.
-   Residual after nonlinear iteration 7: 0.00116626
+      Relative nonlinear residual (Stokes system) after nonlinear iteration 7: 0.00116625
 
    Rebuilding Stokes preconditioner...
    Solving Stokes system... 0+11 iterations.
-   Residual after nonlinear iteration 8: 0.00101506
+      Relative nonlinear residual (Stokes system) after nonlinear iteration 8: 0.00101504
 
    Rebuilding Stokes preconditioner...
    Solving Stokes system... 0+11 iterations.
-   Residual after nonlinear iteration 9: 0.000933725
+      Relative nonlinear residual (Stokes system) after nonlinear iteration 9: 0.000933711
 
    Rebuilding Stokes preconditioner...
    Solving Stokes system... 0+11 iterations.
-   Residual after nonlinear iteration 10: 0.00085987
+      Relative nonlinear residual (Stokes system) after nonlinear iteration 10: 0.00085983
 
 
    Postprocessing:
@@ -60,18 +53,6 @@ Termination requested by criterion: end time
 
 
 +---------------------------------------------+------------+------------+
-| Total wallclock time elapsed since start    |      5.72s |            |
-|                                             |            |            |
-| Section                         | no. calls |  wall time | % of total |
 +---------------------------------+-----------+------------+------------+
-| Assemble Stokes system          |        10 |      1.79s |        31% |
-| Assemble temperature system     |         1 |    0.0567s |      0.99% |
-| Build Stokes preconditioner     |        10 |      1.48s |        26% |
-| Build temperature preconditioner|         1 |  0.000747s |     0.013% |
-| Solve Stokes system             |        10 |      2.14s |        37% |
-| Solve temperature system        |         1 |  0.000999s |     0.017% |
-| Initialization                  |         2 |     0.114s |         2% |
-| Postprocessing                  |         1 |    0.0107s |      0.19% |
-| Setup dof systems               |         1 |    0.0756s |       1.3% |
 +---------------------------------+-----------+------------+------------+
 

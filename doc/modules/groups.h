@@ -38,6 +38,15 @@
  */
 
 /**
+ * @defgroup InitialTopographyModels Describing the properties of the initial topography of the domain
+ *
+ * A module for the definition of properties related to initial topography of
+ * the geometry. The goal of this module is to return the elevation at a
+ * certain point on the surface and store and manage all information related
+ * to this porpose.
+ */
+
+/**
  * @defgroup GeometryModels Describing the properties of the domain
  *
  * A module for the definition of properties of the geometry. This primarily
@@ -91,7 +100,7 @@
  */
 
 /**
- * @defgroup InitialConditionsModels Describing initial conditions for the temperature
+ * @defgroup InitialTemperatures Describing initial conditions for the temperature
  *
  * A module for the definition of functions and classes that have to do with
  * initial conditions for the temperature.
@@ -100,10 +109,10 @@
  */
 
 /**
- * @defgroup CompositionalInitialConditionsModels Describing initial conditions for compositional fields
+ * @defgroup InitialCompositions Describing initial conditions for compositional fields
  *
  * A module for the definition of functions and classes that have to do with
- * initial conditions for the temperature.
+ * initial conditions for the composition.
  *
  * @ingroup InitialConditions
  */
@@ -156,7 +165,7 @@
  */
 
 /**
- * @defgroup VelocityBoundaryConditions Describing boundary conditions for the velocity field
+ * @defgroup BoundaryVelocities Describing boundary conditions for the velocity field
  *
  * A module for the definition of functions and classes that have to do with
  * describing boundary values for the velocity field.
@@ -165,10 +174,74 @@
  */
 
 /**
- * @defgroup TractionBoundaryConditionsModels Describing traction boundary conditions for the velocity field
+ * @defgroup BoundaryTractions Describing traction boundary conditions for the velocity field
  *
  * A module for the definition of functions and classes that have to do with
  * describing traction boundary values for the velocity field.
  *
  * @ingroup BoundaryConditions
+ */
+
+/**
+ * @defgroup BoundaryFluidPressures Describing fluid pressure boundary conditions 
+ * for the fluid velocity field
+ *
+ * A module for the definition of functions and classes that have to do with
+ * describing fluid pressure boundary values.
+ * These classes are currenlty only used for computations involving two-phase
+ * flow (e.g. melt), since the fluid pressure is only computed for
+ * coupled Stokes-darcy flow.
+ *
+ * @ingroup BoundaryConditions
+ */
+
+/**
+ * @defgroup Particle Describing advected particles
+ *
+ * A module that contains everything related to particles.
+ */
+
+/**
+ * @defgroup ParticleGenerators Describing the method to generate particles
+ *
+ * A module for the definition of functions and classes that have to do with
+ * describing a method to generate particles in the model domain.
+ *
+ * @ingroup Particle
+ */
+
+/**
+ * @defgroup ParticleIntegrators Describing the method to integrate particles
+ *
+ * A module for the definition of functions and classes that have to do with
+ * integrating the particle positions through time.
+ *
+ * @ingroup Particle
+ */
+
+/**
+ * @defgroup ParticleInterpolators Describing the method to interpolate particle properties to arbitrary positions
+ *
+ * A module for the definition of functions and classes that have to do with
+ * interpolating particle properties to arbitrary positions.
+ *
+ * @ingroup Particle
+ */
+
+/**
+ * @defgroup ParticleOutput Describing the output method of particles
+ *
+ * A module for the definition of functions and classes that have to do with
+ * describing a method to output the particles.
+ *
+ * @ingroup Particle
+ */
+
+/**
+ * @defgroup ParticleProperties Describing the properties of particles
+ *
+ * A module for the definition of functions and classes that have to do with
+ * describing the properties of the advected particles.
+ *
+ * @ingroup Particle
  */

@@ -13,7 +13,7 @@ set Use years in output instead of seconds = true
 
 
 subsection Boundary temperature model
-  set Model name = constant
+  set List of model names = constant
   subsection Constant
     set Boundary indicator to temperature mappings = left:0, right:0, bottom:0, top:0
   end
@@ -46,7 +46,7 @@ subsection Gravity model
   end
 end
 
-subsection Initial conditions
+subsection Initial temperature model
   set Model name = function
   subsection Function 
     set Variable names      = x,y
@@ -77,19 +77,24 @@ subsection Mesh refinement
   end
 end
 
-subsection Model settings
-  set Include adiabatic heating               = false
-  set Include shear heating                   = false
+# The parameters below this comment were created by the update script
+# as replacement for the old 'Model settings' subsection. They can be
+# safely merged with any existing subsections with the same name.
+
+subsection Boundary temperature model
   set Fixed temperature boundary indicators   = left, right, bottom, top
-  set Prescribed velocity boundary indicators =
-  set Tangential velocity boundary indicators = left, right, bottom
-  set Zero velocity boundary indicators       = 
-  set Free surface boundary indicators = top
 end
 
-subsection Free surface
-  set Free surface stabilization theta = 0.5
-  set Surface velocity projection = vertical
+subsection Boundary velocity model
+  set Tangential velocity boundary indicators = left, right, bottom
+end
+
+subsection Mesh deformation
+  set Mesh deformation boundary indicators = top: free surface
+  subsection Free surface
+    set Free surface stabilization theta = 0.5
+    set Surface velocity projection = vertical
+  end
 end
 
 subsection Compositional fields
@@ -101,7 +106,7 @@ subsection Termination criteria
   set End step = 20
 end
 
-subsection Compositional initial conditions
+subsection Initial composition model
   set Model name = function
   subsection Function
     set Variable names      = x,y
@@ -112,6 +117,7 @@ end
 subsection Postprocess
   set List of postprocessors = visualization,topography,velocity statistics,
   subsection Visualization
+    set Interpolate output = false
     set Output format = gnuplot
     set Time between graphical output = 1.e4
   end

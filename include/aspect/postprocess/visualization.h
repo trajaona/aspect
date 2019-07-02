@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011, 2012 by the authors of the ASPECT code.
+  Copyright (C) 2011 - 2019 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,13 +14,13 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
 
-#ifndef __aspect__postprocess_visualization_h
-#define __aspect__postprocess_visualization_h
+#ifndef _aspect_postprocess_visualization_h
+#define _aspect_postprocess_visualization_h
 
 #include <aspect/postprocess/interface.h>
 #include <aspect/simulator_access.h>
@@ -70,12 +70,12 @@ namespace aspect
        * of the solution and other information such as the location of
        * quadrature points into the desired quantity to output. A typical case
        * would be if the quantity $g(x)$ you want to output can be written as
-       * a function $g(x) = G(u(x),\nabla u(x), x, ...)$ in a pointwise sense
+       * a function $g(x) = G(u(x),\nabla u(x), x, ...)$ in a point-wise sense
        * where $u(x)$ is the value of the solution vector (i.e., the
        * velocities, pressure, temperature, etc) at an evaluation point. In
        * the context of this program an example would be to output the density
        * of the medium as a spatially variable function since this is a
-       * quantity that for realistic media depends pointwise on the values of
+       * quantity that for realistic media depends point-wise on the values of
        * the solution.
        *
        * Using this way of describing a visualization postprocessor will yield
@@ -88,10 +88,10 @@ namespace aspect
        * dealii::DataPostprocessor but instead from the CellDataVectorCreator
        * class. In this case, a visualization postprocessor would generate and
        * return a vector that consists of one element per cell. The intent of
-       * this option is to output quantities that are not pointwise functions
+       * this option is to output quantities that are not point-wise functions
        * of the solution but instead can only be computed as integrals or
        * other functionals on a per-cell basis. A typical case would be error
-       * estimators that do depend on the solution but not in a pointwise
+       * estimators that do depend on the solution but not in a point-wise
        * sense; rather, they yield one value per cell of the mesh. See the
        * documentation of the CellDataVectorCreator class for more
        * information.
@@ -109,6 +109,16 @@ namespace aspect
            */
           virtual
           ~Interface ();
+
+          /**
+           * Initialize function.
+           */
+          virtual void initialize ();
+
+          /**
+           * Update any temporary information needed by the visualization postprocessor.
+           */
+          virtual void update();
 
           /**
            * Declare the parameters this class takes through input files.
@@ -144,7 +154,7 @@ namespace aspect
            * the input file) of the postprocessors it requires. The manager
            * will ensure that these postprocessors are indeed used, even if
            * they were not explicitly listed in the input file, and are indeed
-           * run <i>before</i> this postprocessor everytime they are executed.
+           * run <i>before</i> this postprocessor every time they are executed.
            *
            * The postprocessors you can nominate here are of the general
            * postprocessor class, not visualization postprocessors.
@@ -199,9 +209,9 @@ namespace aspect
 
       /**
        * As explained in the documentation of the Interface class, the second
-       * kind of visualization plugin is one that wants to generate cellwise
+       * kind of visualization plugin is one that wants to generate cell-wise
        * data. Classes derived from this class need to implement a function
-       * execute() that computes these cellwise values and return a pair of
+       * execute() that computes these cell-wise values and return a pair of
        * values where the first one indicates the name of a variable and the
        * second one is a vector with one entry per cell. This class is the
        * interface that such plugins have to implement.
@@ -214,16 +224,25 @@ namespace aspect
       {
         public:
           /**
+           * Destructor.
+           */
+          virtual
+          ~CellDataVectorCreator () = default;
+
+          /**
            * The function classes have to implement that want to output
-           * cellwise data.
-           * @return A pair of values with the following meaning: - The first
-           * element provides the name by which this data should be written to
-           * the output file. - The second element is a pointer to a vector
-           * with one element per active cell on the current processor.
-           * Elements corresponding to active cells that are either artificial
-           * or ghost cells (in deal.II language, see the deal.II glossary)
-           * will be ignored but must nevertheless exist in the returned
-           * vector. While implementations of this function must create this
+           * cell-wise data.
+           *
+           * @return A pair of values with the following meaning:
+           * - The first element provides the name by which this data should
+           *   be written to the output file.
+           * - The second element is a pointer to a vector with one element
+           *   per active cell on the current processor. Elements corresponding
+           *   to active cells that are either artificial or ghost cells (in
+           *   deal.II language, see the deal.II glossary)
+           *   will be ignored but must nevertheless exist in the returned
+           *   vector.
+           * While implementations of this function must create this
            * vector, ownership is taken over by the caller of this function
            * and the caller will take care of destroying the vector pointed
            * to.
@@ -260,18 +279,18 @@ namespace aspect
         Visualization ();
 
         /**
-         * Destructor. Makes sure that any background thread that may still be
-         * running writing data to disk finishes before the current object is
-         * fully destroyed.
-         */
-        ~Visualization ();
-
-        /**
          * Generate graphical output from the current solution.
          */
         virtual
         std::pair<std::string,std::string>
         execute (TableHandler &statistics);
+
+        /**
+         * Update any temporary information needed by the visualization postprocessor.
+         */
+        virtual
+        void
+        update ();
 
         /**
          * A function that is used to register visualization postprocessor
@@ -342,6 +361,20 @@ namespace aspect
         template <class Archive>
         void serialize (Archive &ar, const unsigned int version);
 
+
+        /**
+         * For the current plugin subsystem, write a connection graph of all of the
+         * plugins we know about, in the format that the
+         * programs dot and neato understand. This allows for a visualization of
+         * how all of the plugins that ASPECT knows about are interconnected, and
+         * connect to other parts of the ASPECT code.
+         *
+         * @param output_stream The stream to write the output to.
+         */
+        static
+        void
+        write_plugin_graph (std::ostream &output_stream);
+
         /**
          * Exception.
          */
@@ -366,6 +399,20 @@ namespace aspect
         double last_output_time;
 
         /**
+         * Maximum number of steps between the generation of graphical output.
+         * This parameter
+         * is read from the input file and consequently is not part of the
+         * state that needs to be saved and restored.
+         */
+        unsigned int maximum_timesteps_between_outputs;
+
+        /**
+         * Timestep at which the last graphical output was produced
+         * Used to check for the next necessary output time.
+         */
+        unsigned int last_output_timestep;
+
+        /**
          * Consecutively counted number indicating the how-manyth time we will
          * create output the next time we get to it.
          */
@@ -385,6 +432,15 @@ namespace aspect
         unsigned int group_files;
 
         /**
+         * On large clusters it can be advantageous to first write the
+         * output to a temporary file on a local file system and later
+         * move this file to a network file system. If this variable is
+         * set to a non-empty string it will be interpreted as a temporary
+         * storage location.
+         */
+        std::string temporary_output_location;
+
+        /**
          * deal.II offers the possibility to linearly interpolate output
          * fields of higher order elements to a finer resolution. This
          * somewhat compensates the fact that most visualization software only
@@ -397,12 +453,42 @@ namespace aspect
         bool interpolate_output;
 
         /**
-         * For free surface computations Aspect uses an Arbitrary-Lagrangian-
+         * deal.II offers the possibility to filter duplicate vertices in HDF5
+         * output files. This merges the vertices of adjacent cells and
+         * therefore saves disk space, but misrepresents discontinuous
+         * output properties. Activating this function reduces the disk space
+         * by about a factor of $2^{dim}$ for hdf5 output.
+         */
+        bool filter_output;
+
+        /**
+         * deal.II offers the possibility to write vtu files with higher order
+         * representations of the output data. This means each cell will correctly
+         * show the higher order representation of the output data instead of the
+         * linear interpolation between vertices that ParaView and Visit usually show.
+         * Note that activating this option is safe and recommended, but requires that
+         * (i) ``Output format'' is set to ``vtu'', (ii) ``Interpolate output'' is
+         * set to true, (iii) you use a sufficiently new version of Paraview
+         * or Visit to read the files (Paraview version 5.5 or newer, and Visit version
+         * to be determined), and (iv) you use deal.II version 9.1.0 or newer.
+         */
+        bool write_higher_order_output;
+
+        /**
+         * For mesh deformation computations Aspect uses an Arbitrary-Lagrangian-
          * Eulerian formulation to handle deforming the domain, so the mesh
          * has its own velocity field.  This may be written as an output field
          * by setting output_mesh_velocity to true.
          */
         bool output_mesh_velocity;
+
+        /**
+         * File operations can potentially take a long time, blocking the
+         * progress of the rest of the model run. Setting this variable to
+         * 'true' moves this process into a background thread, while the
+         * rest of the model continues.
+         */
+        bool write_in_background_thread;
 
         /**
          * Set the time output was supposed to be written. In the simplest
@@ -421,23 +507,6 @@ namespace aspect
         void mesh_changed_signal ();
 
         /**
-         * Whether the mesh changed since the last output.
-         */
-        bool mesh_changed;
-
-        /**
-         * The most recent name of the mesh file, used to avoid redundant mesh
-         * output.
-         */
-        std::string last_mesh_file_name;
-
-        /**
-         * Handle to a thread that is used to write data in the background.
-         * The background_writer() function runs on this background thread.
-         */
-        Threads::Thread<void> background_thread;
-
-        /**
          * A function that writes the text in the second argument to a file
          * with the name given in the first argument. The function is run on a
          * separate thread to allow computations to continue even though
@@ -445,8 +514,93 @@ namespace aspect
          * of these arguments and deletes them at the end of its work.
          */
         static
-        void background_writer (const std::string *filename,
-                                const std::string *file_contents);
+        void writer (const std::string filename,
+                     const std::string temporary_filename,
+                     const std::string *file_contents);
+
+        /**
+         * A list of postprocessor objects that have been requested in the
+         * parameter file.
+         */
+        std::list<std::unique_ptr<VisualizationPostprocessors::Interface<dim> > > postprocessors;
+
+        /**
+         * A structure that keeps some history about past output operations.
+         * These variables are grouped into a structure because we need them
+         * twice: Once for the cell output case (via DataOut) and once for
+         * surface output (via DataOutFaces).
+         */
+        struct OutputHistory
+        {
+          /**
+           * Constructor
+           */
+          OutputHistory ();
+
+          /**
+           * Destructor. Makes sure that any background thread that may still be
+           * running writing data to disk finishes before the current object is
+           * fully destroyed.
+           */
+          ~OutputHistory ();
+
+          /**
+           * Serialize the contents of this class as far as they are not read
+           * from input parameter files.
+           */
+          template <class Archive>
+          void serialize (Archive &ar, const unsigned int version);
+
+          /**
+           * Whether the mesh changed since the last time we produced cell-based
+           * output.
+           */
+          bool mesh_changed;
+
+          /**
+           * The most recent name of the mesh file, used to avoid redundant mesh
+           * output.
+           */
+          std::string last_mesh_file_name;
+
+          /**
+          * A list of pairs (time, pvtu_filename) that have so far been written
+          * and that we will pass to DataOutInterface::write_pvd_record to
+          * create a master file that can make the association between
+          * simulation time and corresponding file name (this is done because
+          * there is no way to store the simulation time inside the .pvtu or
+          * .vtu files).
+          */
+          std::vector<std::pair<double,std::string> > times_and_pvtu_names;
+
+          /**
+           * A list of list of filenames, sorted by timestep, that correspond to
+           * what has been created as output. This is used to create a master
+           * .visit file for the entire simulation.
+           */
+          std::vector<std::vector<std::string> > output_file_names_by_timestep;
+
+          /**
+           * A set of data related to XDMF file sections describing the HDF5
+           * heavy data files created. These contain things such as the
+           * dimensions and names of data written at all steps during the
+           * simulation.
+           */
+          std::vector<XDMFEntry>  xdmf_entries;
+
+          /**
+           * Handle to a thread that is used to write data in the background.
+           * The writer() function runs on this background thread when outputting
+           * data for the `data_out` object.
+           */
+          Threads::Thread<void> background_thread;
+        };
+
+        /**
+         * Information about the history of writing graphical
+         * output for cells (via DataOut).
+         */
+        OutputHistory cell_output_history;
 
         /**
          * Write the various master record files. The master files are used by
@@ -463,41 +617,27 @@ namespace aspect
          * @param solution_file_prefix The stem of the filename to be written.
          * @param filenames List of filenames for the current output from all
          * processors.
+         * @param output_history The OutputHistory object to fill.
          */
-        void write_master_files (const DataOut<dim> &data_out,
+        template <typename DataOutType>
+        void write_master_files (const DataOutType &data_out,
                                  const std::string &solution_file_prefix,
-                                 const std::vector<std::string> &filenames);
+                                 const std::vector<std::string> &filenames,
+                                 OutputHistory                  &output_history) const;
+
 
         /**
-         * A list of postprocessor objects that have been requested in the
-         * parameter file.
+         * A function, called from the execute() function, that takes a
+         * DataOut object, does some preliminary work with it, and then
+         * writes the result out to files via the writer() function (in the
+         * case of VTU output) or through the XDMF facilities.
+         *
+         * The function returns the base name of the output files produced,
+         * which can then be used for the statistics file and screen output.
          */
-        std::list<std_cxx11::shared_ptr<VisualizationPostprocessors::Interface<dim> > > postprocessors;
-
-        /**
-         * A list of pairs (time, pvtu_filename) that have so far been written
-         * and that we will pass to DataOutInterface::write_pvd_record to
-         * create a master file that can make the association between
-         * simulation time and corresponding file name (this is done because
-         * there is no way to store the simulation time inside the .pvtu or
-         * .vtu files).
-         */
-        std::vector<std::pair<double,std::string> > times_and_pvtu_names;
-
-        /**
-         * A list of list of filenames, sorted by timestep, that correspond to
-         * what has been created as output. This is used to create a master
-         * .visit file for the entire simulation.
-         */
-        std::vector<std::vector<std::string> > output_file_names_by_timestep;
-
-        /**
-         * A set of data related to XDMF file sections describing the HDF5
-         * heavy data files created. These contain things such as the
-         * dimensions and names of data written at all steps during the
-         * simulation.
-         */
-        std::vector<XDMFEntry>  xdmf_entries;
+        template <typename DataOutType>
+        std::string write_data_out_data(DataOutType   &data_out,
+                                        OutputHistory &output_history) const;
     };
   }
 

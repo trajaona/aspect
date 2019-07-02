@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2014 by the authors of the ASPECT code.
+  Copyright (C) 2014 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,14 +14,15 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __aspect__model_simple_compressible_h
-#define __aspect__model_simple_compressible_h
+#ifndef _aspect_material_model_simple_compressible_h
+#define _aspect_material_model_simple_compressible_h
 
 #include <aspect/material_model/interface.h>
+#include <aspect/material_model/rheology/constant_viscosity.h>
 #include <aspect/simulator_access.h>
 
 namespace aspect
@@ -31,9 +32,18 @@ namespace aspect
     using namespace dealii;
 
     /**
-     * A material model that consists of globally constant values for all
-     * material parameters except that the density decays linearly with the
-     * temperature and increases linearly with pressure.
+     * A material model that consists of globally constant values for the
+     * viscosity, thermal conductivity, thermal expansivity
+     * and compressibility. The density decays linearly with the
+     * temperature and increases exponentially with pressure.
+     *
+     * The formulation for the density assumes that the compressibility
+     * provided by the user is the adiabatic compressibility ($\beta_S$).
+     * The thermal expansivity and isentropic compressibility implied by
+     * the pressure and temperature dependence are equal to the
+     * user-defined constant values only along the reference isentrope, and
+     * there is also an implicit pressure dependence to the heat capacity
+     * $C_p$ via Maxwell's relations.
      *
      * The model is considered incompressible or compressible, depending on
      * the compressibility.
@@ -44,10 +54,9 @@ namespace aspect
     class SimpleCompressible : public MaterialModel::Interface<dim>, public ::aspect::SimulatorAccess<dim>
     {
       public:
-
         /**
-        * Evaluate material properties.
-        */
+         * Evaluate material properties.
+         */
         virtual void evaluate(const MaterialModelInputs<dim> &in,
                               MaterialModelOutputs<dim> &out) const;
 
@@ -60,7 +69,7 @@ namespace aspect
          * Return whether the model is compressible or not.  Incompressibility
          * does not necessarily imply that the density is constant; rather, it
          * may still depend on temperature or pressure. In the current
-         * context, compressibility means whether we should solve the contuity
+         * context, compressibility means whether we should solve the continuity
          * equation as $\nabla \cdot (\rho \mathbf u)=0$ (compressible Stokes)
          * or as $\nabla \cdot \mathbf{u}=0$ (incompressible Stokes).
          */
@@ -74,14 +83,6 @@ namespace aspect
          * @{
          */
         virtual double reference_viscosity () const;
-
-        virtual double reference_density () const;
-
-        virtual double reference_thermal_expansion_coefficient () const;
-
-        double reference_thermal_diffusivity () const;
-
-        double reference_cp () const;
         /**
          * @}
          */
@@ -109,14 +110,9 @@ namespace aspect
 
       private:
         /**
-         * The reference surface temperature
+         * The reference density
          */
         double reference_rho;
-
-        /**
-         * The constant viscosity
-         */
-        double eta;
 
         /**
          * The constant thermal expansivity
@@ -138,6 +134,10 @@ namespace aspect
          */
         double k_value;
 
+        /**
+         * The constant rheology model.
+         */
+        Rheology::ConstantViscosity constant_rheology;
     };
 
   }
