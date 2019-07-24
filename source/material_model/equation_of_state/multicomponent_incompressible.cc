@@ -38,7 +38,19 @@ namespace aspect
       {
         for (unsigned int c=0; c < out.densities.size(); ++c)
           {
-            out.densities[c] = densities[c] * (1 - thermal_expansivities[c] * (in.temperature[q] - reference_T));
+//                  if (c == this->introspection().compositional_index_for_name("upper_crust")+1)
+//                      out.densities[c] = in.composition[q][this->introspection().compositional_index_for_name("upper_crust_density")];
+//                  else if (c == this->introspection().compositional_index_for_name("middle_crust")+1)
+//                      out.densities[c] = in.composition[q][this->introspection().compositional_index_for_name("middle_crust_density")];
+//                  else  if (c == this->introspection().compositional_index_for_name("lower_crust")+1)
+//                      out.densities[c] = in.composition[q][this->introspection().compositional_index_for_name("lower_crust_density")];
+//                  else
+            if (c == 0)
+               out.densities[c] = densities[c] * (1 - thermal_expansivities[c] * (in.temperature[q] - reference_T));
+            else
+            out.densities[c] = densities[c]; 
+            //else
+            //out.densities[c] = densities[c] * (1 - thermal_expansivities[c] * (in.temperature[q] - reference_T));
             out.thermal_expansion_coefficients[c] = thermal_expansivities[c];
             out.specific_heat_capacities[c] = specific_heats[c];
             out.compressibilities[c] = 0.0;

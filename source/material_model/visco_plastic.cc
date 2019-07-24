@@ -166,6 +166,14 @@ namespace aspect
 
           // Select what form of viscosity to use (diffusion, dislocation or composite)
           double viscosity_pre_yield = 0.0;
+          if (j==0)
+          {
+          viscosity_diffusion =  std::min(std::max(viscosity_diffusion, min_visc), max_visc);
+          viscosity_dislocation =  std::min(std::max(viscosity_dislocation, min_visc), max_visc);
+          viscosity_pre_yield = (viscosity_diffusion * viscosity_dislocation)/(viscosity_diffusion + viscosity_dislocation);
+          }
+          else
+          {
           switch (viscous_type)
             {
               case diffusion:
@@ -188,6 +196,7 @@ namespace aspect
                 AssertThrow(false, ExcNotImplemented());
                 break;
               }
+            }
             }
 
 
@@ -569,6 +578,9 @@ namespace aspect
                 composition_mask.set(i,false);
             }
         }
+          composition_mask.set(this->introspection().compositional_index_for_name("upper_crust_density"),false);
+          composition_mask.set(this->introspection().compositional_index_for_name("middle_crust_density"),false);
+          composition_mask.set(this->introspection().compositional_index_for_name("lower_crust_density"),false);
 
       return composition_mask;
     }
