@@ -89,7 +89,11 @@ namespace aspect
         double surface_temperature;
         double thermal_conductivity_of_lithosphere;
         std::vector<double> heat_productions;
-        double heat_flow_at_lab;
+        double maximum_rift_thickness;
+        double minimum_craton_thickness;
+        double rift_surface_heat_flow;
+        double transition_surface_heat_flow;
+        double craton_surface_heat_flow; 
 
         Utilities::AsciiDataBoundary<dim> ascii_data_lab;
 
@@ -102,6 +106,7 @@ namespace aspect
         std::string reference_profile_filename;
         bool use_reference_profile;
         std::string data_directory;
+        double heat_flow_at_lab; 
         /*
          * Continetal lithosphere geotherm parameters and function
          */
@@ -109,19 +114,18 @@ namespace aspect
         /*
          * function that calculate temperature within the lithopshere as a function of depth
          */
-        double lithosphere_geotherm (const double &z /*depth*/,
-        		             const double &lithosphere_thickness,
-        		             const double &upper_crust_thickness,
-				     const double &middle_crust_thickness,
-				     const double &lower_crust_thickness,
-				     const double &lab_temp) const;
-           Utilities::AsciiDataBoundary<dim> ascii_data_topo;
-        /*double atmospheric_thermal_gradient;
-         *vector<double> heat_flux;
-         *vector<double> layers_temperature;
-         *vector<double> heat_productions;
-         *vector<double>
-         */
+       double continental_geotherm_method2 (const double &depth /*depth*/,
+        		                    const double &lithosphere_bottom,
+        		                    const double &upper_crust_bottom,
+				            const double &middle_crust_bottom,
+				            const double &lower_crust_bottom) const;
+        
+       double continental_geotherm_method1 (const double &z, 
+                                            const double &lithospheric_bottom,
+                                            const double &upper_crust_bottom, 
+                                            const double &middle_crust_bottom,
+                                            const double &lower_crust_bottom) const ;
+     
     };
   }
 }

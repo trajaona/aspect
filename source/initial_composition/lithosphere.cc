@@ -51,9 +51,7 @@ namespace aspect
         surface_boundary_set.insert(surface_boundary_id);
 
         // The input ascii table contains two components, the crust depth and the LAB depth
-        Utilities::AsciiDataBoundary<dim>::initialize(surface_boundary_set,
-                                                      7);
-        ascii_data_topo.initialize(surface_boundary_set,1);
+        Utilities::AsciiDataBoundary<dim>::initialize(surface_boundary_set,7);
     }
 
     template <int dim>
@@ -67,14 +65,11 @@ namespace aspect
 
       const Point<2> wpoint (wcoord[1], wcoord[2]);
 
-     // const double base_of_upper_crust              = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 3);
-     // const double base_of_middle_crust             = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 2);
-     // const double base_of_lower_crust              = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 1);
-     //const double base_of_lithosphere              = std::max(Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 0),100000.0);
-         const double base_of_lithosphere              = 100000.0;
-        const double base_of_upper_crust = 20000.0;
-        const double base_of_middle_crust = 30000.0;
-        const double base_of_lower_crust = 35000.0; 
+      const double base_of_upper_crust              = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 3);
+      const double base_of_middle_crust             = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 2);
+      const double base_of_lower_crust              = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 1);
+      const double base_of_lithosphere              = std::max(Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 0),60000.0);
+      
       // Indexes of lithospheric compositonal fields.
       const unsigned int upper_crust_idx = this->introspection().compositional_index_for_name("upper_crust");
       const unsigned int middle_crust_idx = this->introspection().compositional_index_for_name("middle_crust");
@@ -82,7 +77,7 @@ namespace aspect
       const unsigned int mantle_lithosphere_idx = this->introspection().compositional_index_for_name("mantle_lithosphere");
       
       const unsigned int upper_crust_dens_idx = this->introspection().compositional_index_for_name("upper_crust_density");
-     const unsigned int middle_crust_dens_idx = this->introspection().compositional_index_for_name("middle_crust_density");
+      const unsigned int middle_crust_dens_idx = this->introspection().compositional_index_for_name("middle_crust_density");
       const unsigned int lower_crust_dens_idx = this->introspection().compositional_index_for_name("lower_crust_density");
   
      // Lithospheric compositional fields
@@ -118,14 +113,6 @@ namespace aspect
 
         prm.enter_subsection("Lithosphere");
         {
-           prm.enter_subsection("Topography");
-           {
-            Utilities::AsciiDataBoundary<dim>::declare_parameters(prm,
-                                                             "$ASPECT_SOURCE_DIR/data/geometry-model/initial-topography-model/ascii-data/",
-                                                             "ears_topography.txt"); 
-           }
-          prm.leave_subsection();
-      
           Utilities::AsciiDataBoundary<dim>::declare_parameters(prm,
                                                              "$ASPECT_SOURCE_DIR/data/data/geometry-model/initial-topography-model/ascii-data/",
                                                              "ears_topography.txt");
@@ -137,15 +124,6 @@ namespace aspect
         	                 "plate_boundaries.txt",
         	                 Patterns::FileName (),
         	                 "File from which the isotherm depth data is read.");
-          prm.declare_entry ("Moho", "30000.0",
-                             Patterns::Double (0),
-                             "Moho depth. Units: $m.");
-          prm.declare_entry ("LAB isotherm", "1673",
-                             Patterns::Double (0),
-                             "Temperature at the base of the lithosphere. Units: $K.");
-                   prm.declare_entry ("Topography factor", "1.0",
-                             Patterns::Double (0),
-                             "Temperature at the base of the lithosphere. Units: $K.");
         }
         prm.leave_subsection();
       }
@@ -162,19 +140,9 @@ namespace aspect
     	Utilities::AsciiDataBase<dim>::parse_parameters(prm);
         prm.enter_subsection("Lithosphere");
         {
-          prm.enter_subsection("Topography");
-          {
-             ascii_data_topo.initialize_simulator (this->get_simulator()); 
-             ascii_data_topo.parse_parameters(prm);
-          }
-          prm.leave_subsection();
-
           data_directory = Utilities::expand_ASPECT_SOURCE_DIR (prm.get("Data directory"));
 
           plate_boundaries_file_name   = prm.get("Craton filename");
-          moho                            = prm.get_double ("Moho");
-          LAB_isotherm                    = prm.get_double ("LAB isotherm");
-          topo_fac                    = prm.get_double ("Topography factor");
         }
         prm.leave_subsection();
       }

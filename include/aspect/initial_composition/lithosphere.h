@@ -90,12 +90,7 @@ namespace aspect
 
         std::string data_directory;
 
-        double  LAB_isotherm;
-        double  moho;
-        double  topo_fac;
-        //double fault_width;
         types::boundary_id surface_boundary_id;
-        Utilities::AsciiDataBoundary<dim> ascii_data_topo; 
     };
   }
 }
