@@ -285,8 +285,6 @@ namespace aspect
              ascii_data_topo.parse_parameters(prm);
           }
           prm.leave_subsection();
-          max_grid_depth            = prm.get_double ("Maximum grid depth");
-          smoothing_length_scale   = prm.get_double ("Smoothing length scale");
           thermal_alpha            = prm.get_double ("Thermal expansion coefficient");
           vs_to_density            = prm.get_double ("Vs to density");
           lab_isotherm_temperature = prm.get_double ("LAB isotherm temperature");
@@ -301,7 +299,6 @@ namespace aspect
                                                                      4,
                                                                      "Heat production in the lithosphere");
           Utilities::AsciiDataBase<dim>::parse_parameters(prm);
-          topo_fac            = prm.get_double ("Topography factor");
         }
         prm.leave_subsection();
       }
