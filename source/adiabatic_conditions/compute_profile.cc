@@ -23,7 +23,8 @@
 #include <aspect/adiabatic_conditions/compute_profile.h>
 #include <aspect/gravity_model/interface.h>
 #include <aspect/initial_composition/interface.h>
-
+#include <aspect/geometry_model/interface.h>
+#include <aspect/geometry_model/chunk.h>
 #include <deal.II/base/signaling_nan.h>
 
 
@@ -63,7 +64,6 @@ namespace aspect
       temperatures.resize(n_points, numbers::signaling_nan<double>());
       pressures.resize(n_points, numbers::signaling_nan<double>());
       densities.resize(n_points, numbers::signaling_nan<double>());
-
       delta_z = this->get_geometry_model().maximal_depth() / (n_points-1);
 
       MaterialModel::MaterialModelInputs<dim> in(1, this->n_compositional_fields());
@@ -222,7 +222,7 @@ namespace aspect
     double ComputeProfile<dim>::density_derivative (const Point<dim> &p) const
     {
       const double z = this->get_geometry_model().depth(p);
-
+ 
       if (z >= this->get_geometry_model().maximal_depth())
         {
           Assert (z <= this->get_geometry_model().maximal_depth() + delta_z,
@@ -249,18 +249,27 @@ namespace aspect
     double ComputeProfile<dim>::get_property (const Point<dim> &p,
                                               const std::vector<double> &property) const
     {
-      const double z = this->get_geometry_model().depth(p);
-
+     double z;
+     if (const GeometryModel::Chunk<dim> *gm = dynamic_cast<const GeometryModel::Chunk<dim>*> (&this->get_geometry_model()))
+          z = gm->depth_wrt_topo(p);
+     else
+         z = this->get_geometry_model().depth(p);
+     
       if (z >= this->get_geometry_model().maximal_depth())
-        {
-          Assert (z <= this->get_geometry_model().maximal_depth() + delta_z,
-                  ExcInternalError());
-          return property.back();
+        { 
+         z = this->get_geometry_model().maximal_depth();
+         Assert (z <= this->get_geometry_model().maximal_depth() + delta_z,
+                 ExcInternalError());
+         return property.back();
         }
 
       if (z <= 0)
         {
           Assert (z >= -delta_z, ExcInternalError());
+          return property.front();
+        }
+      if (z <= 0.0001)
+        {
           return property.front();
         }
 

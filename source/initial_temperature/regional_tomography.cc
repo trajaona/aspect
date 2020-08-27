@@ -30,7 +30,7 @@ namespace aspect
    template <int dim>
    RegionalTomography<dim>::RegionalTomography()
    :
-   surface_boundary_id(1)
+   surface_boundary_id(5)
    {}
   
    template <int dim>
@@ -44,9 +44,8 @@ namespace aspect
 
     std::set<types::boundary_id> surface_boundary_set;
     surface_boundary_set.insert(surface_boundary_id);
-
     // The input ascii table contains two components, the crust depth and the LAB depth
-    ascii_data_lab.initialize(surface_boundary_set,7);
+    ascii_data_lab.initialize(surface_boundary_set,8);
    }
 
 
@@ -73,12 +72,21 @@ namespace aspect
       double k = thermal_conductivity_of_lithosphere;
 
      // Define surface heat flow for different function of regions.
-      if (z <= maximum_rift_thickness)
+      if (lithosphere_bottom < 90000.0)
+      {
          Q[0] = rift_surface_heat_flow; 
-      else if (z >= minimum_craton_thickness)
-         Q[0] = craton_surface_heat_flow; 
-      else 
+         A = {0.0,0.4e-6,0.4e-6,0.1e-6};
+      }
+      else if (lithosphere_bottom > 100000.0)
+      {
+         Q[0] = craton_surface_heat_flow;
+         A = {0.0,0.4e-6,0.2e-6,0.1e-6}; 
+      }
+      else
+      { 
          Q[0] = transition_surface_heat_flow; 
+         A = {0.0,0.4e-6,0.4e-6,0.1e-6};
+      }
       
       // Surface temperature 
       T[0] = surface_temperature;
@@ -87,7 +95,7 @@ namespace aspect
       T[4] = lab_isotherm_temperature; 
 
       // Heat productions for each layer. 
-      A = heat_productions;
+     A = heat_productions;
       
       // Calculate layers thicknesses 
       dz[0] = upper_crust_bottom;
@@ -197,39 +205,120 @@ namespace aspect
     {
         const double depth = this->get_geometry_model().depth(position);
         double vs_perturbation = 0.0;
+        std::array<double,dim> wcoord      = Utilities::Coordinates::WGS84_coordinates(position);
+        const Point<2> wpoint (wcoord[1], wcoord[2]);       
 
-         //   Read ascii data file containing depth of lithospheric layers. 
-        const double upper_crust_bottom   =  ascii_data_lab.get_data_component(surface_boundary_id, position, 3);
-        const double middle_crust_bottom  =  ascii_data_lab.get_data_component(surface_boundary_id, position, 2);
-        const double lower_crust_bottom   =  ascii_data_lab.get_data_component(surface_boundary_id, position, 1);
-        const double isotherm_depth       =  std::max(ascii_data_lab.get_data_component(surface_boundary_id, position, 0), 60000.0);
+       //   Read ascii data file containing depth of lithospheric layers. 
+        const double rho_uc =   ascii_data_lab.get_data_component(surface_boundary_id, position, 6); 
+        double isotherm_depth;
+        double upper_crust_bottom;
+        double middle_crust_bottom; 
+        double lower_crust_bottom;
+ 
+        if (use_uniform_crustal_thicknesses)
+        {
+           upper_crust_bottom  = 10000.0;
+           middle_crust_bottom = 25000.0;
+           lower_crust_bottom  = 40000.0; 
+        }
+        else
+        {
+           upper_crust_bottom   =    ascii_data_lab.get_data_component(surface_boundary_id, position, 3);
+           middle_crust_bottom  =    ascii_data_lab.get_data_component(surface_boundary_id, position, 2);
+           lower_crust_bottom   =      ascii_data_lab.get_data_component(surface_boundary_id, position, 1);
+        }
         
+        if (use_uniform_LAB)
+           isotherm_depth = 100000.0;
+        else 
+           isotherm_depth =    ascii_data_lab.get_data_component(surface_boundary_id, position, 0);
+           
+        isotherm_depth = (isotherm_depth < 90000.0)? 100000.0:isotherm_depth;
+        double rift_width;
+        double rift_thickness; 
+        if (wcoord[2] > 6.0 &&  wcoord[1] < 55)
+        {
+            rift_width = 0.0;
+            rift_thickness = 60000.0;
+        }
+        else if (wcoord[1] > 55)
+        {
+            rift_width = 30.0;
+            rift_thickness = 70000.0;
+        }
+        else 
+        {
+            rift_width = 0.0;
+            rift_thickness =  maximum_rift_thickness;
+        }
+
+        isotherm_depth = (  ascii_data_lab.get_data_component(surface_boundary_id, position, 7)==1)? rift_thickness  :isotherm_depth;
+        isotherm_depth = (111*std::abs(Utilities::signed_distance_to_polygon<2>(boundaries_point_lists, wpoint )) < rift_width)? rift_thickness  : isotherm_depth;
+        bool western_branch  = (wcoord[1] < 32.0) ? true:false;
+        isotherm_depth = (isotherm_depth < 90000.0 && western_branch == true)?( rift_thickness + 5):isotherm_depth;
+        isotherm_depth = (isotherm_depth > 100000.0)? 150000.0:isotherm_depth;
+
+        // Discontinous rift
+      const  Point<2> p1 (31.466, 2.420);
+      const  Point<2> p2 (33.1, 4.280);
+      const std::array<Point<2>,2> l_1 = {p1,p2};
+      const  Point<2> p3 (33.756, -8.545);
+      const  Point<2> p4 (35.269, -7.096);
+      const std::array<Point<2>,2> l_2 = {p3,p4};
+      const  Point<2> p5 (35.369, -7.096);
+      const  Point<2> p6 (35.389, -4.328);
+      const std::array<Point<2>,2> l_3 = {p5,p6};
+
+      double seg1 =  111.0 * std::abs(Utilities::distance_to_line(l_1, wpoint));
+      double seg2 =  111.0 * std::abs(Utilities::distance_to_line(l_2, wpoint));
+      double seg3 =  111.0 * std::abs(Utilities::distance_to_line(l_3, wpoint));
+      bool strong = (seg1 < 170.0 || seg2 < 150.0 || seg3 < 175.0) ? true:false;
+ 
+        isotherm_depth = (strong == true)? 150000.0:isotherm_depth;
         // lithosphere. More realistic would be a half space cooling model. TO DO List. 
         double temperature_perturbation = 0.0;
         double lab_temperature;
         aspect::Utilities::tk::spline s;
-        s.set_points(spline_depths,reference_Vs);
+        s.set_points(spline_depths, reference_Vs);
          
-         if (use_reference_profile)
-               vs_perturbation = (ascii_grid_vs(position) - s(depth))/ascii_grid_vs(position);
-         else
+        if (use_reference_profile)
+        {
+               vs_perturbation = (ascii_grid_vs(position) - s(depth))/s(depth);
+        }
+        else
                vs_perturbation = ascii_grid_vs(position)*0.01;
 
     	 // scale the density perturbation into a temperature perturbation. Velocity perturbation make sense only above 400Km depth. Do not apply perturbation below that
     	 // Set a maximum perturbation to 500 K and minimum -500 K. DO TO: Find a more resonnable perturbation value. 
-        temperature_perturbation = std::min(std::max((-1./thermal_alpha) * vs_to_density * vs_perturbation,-200.0), 200.0);
-      
-        // turn off temperature perturbation for the now. 
-        temperature_perturbation = 0.0;
-  
-        // calculate temperature as a function of depth. Continental geotherm in the lithosphere and linear adiabatic increase in sublithospheric mantle.
+        double max_grid_depth = 410000.0;
+        if (depth > isotherm_depth)
+           {
+               // scale the density perturbation into a temperature perturbation
+              temperature_perturbation = -1./thermal_alpha * vs_to_density * vs_perturbation;
+              temperature_perturbation = std::min(std::max(temperature_perturbation, -200.0),200.0);
+           }
+         else
+           {
+              // set heterogeneity to zero down to a specified depth
+               temperature_perturbation = 0.0;
+           }
+    
+           if (add_temperature_perturbation == false)
+              temperature_perturbation = 0.0;
+        // isotherm_depth = 100000.0; 
+      //  isotherm_depth = ascii_data_lab.get_data_component(surface_boundary_id, position, 0);
         double temperature;
-        if (depth <= isotherm_depth)
+        if (depth < isotherm_depth)
+        {
+           //double ridge_temp = (111*std::abs(Utilities::signed_distance_to_polygon<2>(boundaries_point_lists, wpoint )) < 30)?200.0:0.0;
             // Sometimes the temperature at the surface become negative so set it to 298 K. 
-            temperature =  continental_geotherm_method1 (depth, isotherm_depth, upper_crust_bottom, middle_crust_bottom, lower_crust_bottom);
+          temperature =  continental_geotherm_method1 (depth, isotherm_depth, upper_crust_bottom, middle_crust_bottom, lower_crust_bottom);
+        }
         else 
-            // Sublithospheric mantle temperature. Adiabtic gradient is 0.0003K/m. 
-            temperature =  lab_isotherm_temperature + (depth - isotherm_depth) * 0.0003 + temperature_perturbation;
+            temperature =  lab_isotherm_temperature + (depth - isotherm_depth) * 0.0005;
+           // temperature =  lab_isotherm_temperature + temperature_perturbation;
+        //    temperature = (add_temperature_perturbation == false) ?  vs_perturbation: temperature_perturbation;
+
 
         return temperature;
     }
@@ -242,6 +331,23 @@ namespace aspect
       {
         prm.enter_subsection("Regional tomography");
         {
+             prm.enter_subsection("LAB file");
+             {
+                 Utilities::AsciiDataBoundary<dim>::declare_parameters(prm,
+                                                            "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
+           //                                                 "Emry.litho.aspect.input.txt");
+                                                             "ears_synthetic_litho_crust1.txt");
+             }
+            prm.leave_subsection();
+  
+            prm.enter_subsection("Tomography file");
+             {
+                Utilities::AsciiDataBase<dim>::declare_parameters(prm,
+                                                              "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
+                                                              "Emry_shear_wave_velocity.txt");
+             }
+           prm.leave_subsection();
+
             prm.declare_entry ("Thermal expansion coefficient", "4e-5",
           	                 Patterns::Double (0),
                              "The value of the thermal expansion coefficient $\\alpha$. "
@@ -253,7 +359,7 @@ namespace aspect
                              Patterns::Double (0),
                              "Heat flow at the surface. "
 							 "Units: W.m^-2");
-            prm.declare_entry ("Surface temperature", "273.15",
+            prm.declare_entry ("Surface temperature", "293",
                              Patterns::Double (0),
                              "Temperature at the surface or top boundary of the model. "
 							 "Units: K");
@@ -277,13 +383,9 @@ namespace aspect
                                Patterns::List(Patterns::Double(0)),
                                "List of heat production values in the upper crust, middle crust, "
                                "lower crust and mantle lithosphere respectively.  Units: W.m^3");
-            Utilities::AsciiDataBase<dim>::declare_parameters(prm,
-                                                              "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
-                                                              "Emry_shear_wave_velocity.txt");
-            prm.declare_entry ("Data directory", "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
+            prm.declare_entry ("Data dir", "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
                              Patterns::DirectoryName (),
                              "Directory where the reference profile file is located.");
-
             prm.declare_entry ("Reference profile filename",
                              "AK135F_AVG.txt",
                              Patterns::FileName (),
@@ -294,29 +396,45 @@ namespace aspect
                              "Option to take the thermal expansion coefficient from the "
                              "material model instead of from what is specified in this "
                              "section.");
-            prm.declare_entry ("Maximum rift thickness", "70000.0",
+            prm.declare_entry ("Use temperature perturbation", "false",
+                             Patterns::Bool (),
+                             "Option to take the thermal expansion coefficient from the "
+                             "material model instead of from what is specified in this "
+                             "section.");
+            prm.declare_entry ("Maximum rift thickness", "75000.0",
                              Patterns::Double (0),
                              "Maximum lithospheric thickness below which region is considered as a rift ");
             prm.declare_entry ("Minimum craton thickness", "150000.0",
                               Patterns::Double (0),
                              "Minimum lithospheric thickness above which region is considered as a craton ");
-            prm.declare_entry ("Surface heat flow at rift regions", "0.07",
+            prm.declare_entry ("Surface heat flow at rift regions", "0.08",
                               Patterns::Double (0),
                              "Surface heat flow at rift regions");
             prm.declare_entry ("Surface heat flow at transition", "0.06",
                               Patterns::Double (0),
                              "Surface heat flow at normal lithospheric regions or transition");
-             prm.declare_entry ("Surface heat flow at cratonic regions", "0.04",
+            prm.declare_entry ("Surface heat flow at cratonic regions", "0.05",
                               Patterns::Double (0),
                              "Surface heat flow at cratonic regions");
+            prm.declare_entry ("Craton filename",
+                              "african_plate_boundary.txt",
+                              Patterns::FileName (),
+                              "File from which the isotherm depth data is read."); 
+            prm.declare_entry ("Use uniform crustal layers thicknesses", "true",
+                              Patterns::Bool (),
+                             "Option to use uniform crustal thicknesses instead of reading it from file. ");
+            prm.declare_entry ("Use uniform lithosphere thickness", "true",
+                              Patterns::Bool (),
+                             "Option to use uniform lithospherick thicknesses instead of reading it from file. ");
+            prm.declare_entry ("Add thick craton", "false",
+                              Patterns::Bool (),
+                             "Option to add thick craton at region define in the ascii data file. ");
+
         }
       prm.leave_subsection();
       }
       prm.leave_subsection();
 
-      Utilities::AsciiDataBoundary<dim>::declare_parameters(prm,
-         	    	     	    	         	        "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
-         	    	     	    	         	        "ears_synthetic_litho_with_tanzania_craton.txt");
     }
 
     template <int dim>
@@ -327,34 +445,51 @@ namespace aspect
       {
         prm.enter_subsection("Regional tomography");
         {
-          lab_isotherm_temperature = prm.get_double ("LAB isotherm temperature");
-          maximum_rift_thickness   = prm.get_double ("Maximum rift thickness"); 
-          minimum_craton_thickness = prm.get_double ("Minimum craton thickness");
-          rift_surface_heat_flow   = prm.get_double ("Surface heat flow at rift regions"); 
-          transition_surface_heat_flow = prm.get_double ("Surface heat flow at transition");
-          craton_surface_heat_flow = prm.get_double ("Surface heat flow at cratonic regions");
-          surface_temperature = prm.get_double ("Surface temperature");
-          thermal_conductivity_of_lithosphere = prm.get_double ("Thermal conductivity of the lithosphere");
-          heat_flow_at_lab =  prm.get_double ("Heat flow at LAB");
-          reference_profile_filename   = prm.get("Reference profile filename");
-          data_directory = Utilities::expand_ASPECT_SOURCE_DIR(prm.get ("Data directory")); 
-          use_reference_profile              = prm.get_bool ("Use reference profile");
+         prm.enter_subsection("LAB file");
+          {
+             ascii_data_lab.initialize_simulator (this->get_simulator());
+            ascii_data_lab.parse_parameters(prm);
+          }
+          prm.leave_subsection();
+          
+         prm.enter_subsection("Tomography file");
+          {
+               Utilities::AsciiDataBase<dim>::parse_parameters(prm);
+          }
+          prm.leave_subsection();
+
+  
+          vs_to_density                         = prm.get_double ("Vs to density");
+          thermal_alpha                         = prm.get_double ("Thermal expansion coefficient");
+          lab_isotherm_temperature              = prm.get_double ("LAB isotherm temperature");
+          maximum_rift_thickness                = prm.get_double ("Maximum rift thickness"); 
+          minimum_craton_thickness              = prm.get_double ("Minimum craton thickness");
+          rift_surface_heat_flow                = prm.get_double ("Surface heat flow at rift regions"); 
+          transition_surface_heat_flow          = prm.get_double ("Surface heat flow at transition");
+          craton_surface_heat_flow              = prm.get_double ("Surface heat flow at cratonic regions");
+          surface_temperature                   = prm.get_double ("Surface temperature");
+          thermal_conductivity_of_lithosphere   = prm.get_double ("Thermal conductivity of the lithosphere");
+          heat_flow_at_lab                      = prm.get_double ("Heat flow at LAB");
+          reference_profile_filename            = prm.get ("Reference profile filename");
+          data_dir                             = Utilities::expand_ASPECT_SOURCE_DIR(prm.get ("Data dir")); 
+          use_reference_profile                 = prm.get_bool ("Use reference profile");
+          add_temperature_perturbation          = prm.get_bool ("Use temperature perturbation");
+          plate_boundaries_file_name            = prm.get("Craton filename");
+          use_thick_craton                      = prm.get_bool ("Add thick craton");
+          use_uniform_crustal_thicknesses       = prm.get_bool ("Use uniform lithosphere thickness");
+          use_uniform_LAB                       = prm.get_bool ("Use uniform crustal layers thicknesses");
+     
           heat_productions = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Heat production in the lithosphere"))),
                                                                      4,
                                                                      "Heat production in the lithosphere");
-          Utilities::AsciiDataBase<dim>::parse_parameters(prm);
         }
         prm.leave_subsection();
       }
       prm.leave_subsection();
-      ascii_data_lab.initialize_simulator (this->get_simulator());
-
-      // Note: parse_parameters will call initialize for us
-      ascii_data_lab.parse_parameters(prm);
      
       if (use_reference_profile)
       { 
-      const std::string filename = data_directory+reference_profile_filename;
+      const std::string filename = data_dir+reference_profile_filename;
       
       /**
  *        * Read data from disk and distribute among processes
@@ -372,7 +507,28 @@ namespace aspect
         }
   
       }
-    }
+    
+       /*Read craton file */
+      const std::string filename = data_dir+plate_boundaries_file_name;
+
+      /**
+       * Read data from disk and distribute among processes
+       */
+       std::istringstream in(Utilities::read_and_distribute_file_content(filename, this->get_mpi_communicator()));
+
+      /**
+       * Reading data lines
+       */
+       double longitude, latitude;
+
+      while (in >> longitude >> latitude)
+      {
+          Point<2> point (longitude,latitude);
+          boundaries_point_lists.push_back(point);
+      }
+
+    
+     }
 
   }
 

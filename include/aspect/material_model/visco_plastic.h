@@ -382,8 +382,12 @@ namespace aspect
         std::vector<double> angles_internal_friction;
         std::vector<double> cohesions;
         std::vector<double> exponents_stress_limiter;
+        std::vector<double> uniform_viscosities;
 
-        /**
+        bool Use_uniform_compositional_viscosities;
+ 
+        bool Use_sublitho_composite;
+         /**
          * Limit maximum yield stress from drucker-prager.
          */
         double max_yield_strength;

@@ -83,6 +83,16 @@ namespace aspect
         parse_parameters (ParameterHandler &prm);
 
       private:
+        
+        double z_comp;
+
+        double rho_refc;
+        double rift_thickness;
+
+        bool  use_uniform_crustal_thicknesses;
+        bool  use_uniform_density;
+        bool  use_uniform_LAB;
+        bool no_topography;
 
         std::string plate_boundaries_file_name;
        
@@ -91,6 +101,8 @@ namespace aspect
         std::string data_directory;
 
         types::boundary_id surface_boundary_id;
+         Utilities::AsciiDataBoundary<dim> ascii_data_topo; 
+         Utilities::AsciiDataBoundary<dim> ascii_data_lab; 
     };
   }
 }

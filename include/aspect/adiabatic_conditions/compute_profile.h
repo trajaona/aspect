@@ -24,7 +24,8 @@
 
 
 #include <aspect/adiabatic_conditions/interface.h>
-
+#include <aspect/simulator_access.h>
+#include <aspect/utilities.h>
 #include <deal.II/base/parsed_function.h>
 
 namespace aspect
@@ -63,7 +64,6 @@ namespace aspect
          * based on the given material model and other quantities.
          */
         virtual void initialize ();
-
         /**
          * Update function. By default does nothing, but if a time-dependent
          * surface condition function is used, this will reinitialize the

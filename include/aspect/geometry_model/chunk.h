@@ -368,6 +368,15 @@ namespace aspect
             push_forward_sphere(const Point<dim> &chart_point) const;
 
             /**
+ *              * This function adds the initial topography to a
+ *                           * given point in spherical coordinates R, lon, lat.
+ *                                        * I.e. it returns R+topo, lon, lat.
+ *                                                     */
+            virtual
+            Point<dim>
+            push_forward_topo(const Point<dim> &chart_point) const;
+
+            /**
              * This function computes the outer radius of the domain
              * at the longitude (and latitude) of the given point
              * (given in cartesian coordinates), i.e. the unperturbed
@@ -435,9 +444,10 @@ namespace aspect
              * given point in spherical coordinates R, lon, lat.
              * I.e. it returns R+topo, lon, lat.
              */
-            virtual
-            Point<dim>
-            push_forward_topo(const Point<dim> &chart_point) const;
+
+//            virtual
+//            Point<dim>
+//            push_forward_topo(const Point<dim> &chart_point) const;
 
             /**
              * A pointer to the topography model.

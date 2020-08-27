@@ -79,7 +79,7 @@ namespace aspect
           // No need to set the radial coordinate correctly,
           // because it will be thrown away in get_data_component anyway
           std::array<double, dim> point;
-          point[0] = 6371000.0;
+          point[0] = 6378137.0;
           for (unsigned int d=0; d<dim-1; d++)
             point[d+1] = surface_point[d];
 

@@ -51,7 +51,8 @@ namespace aspect
         surface_boundary_set.insert(surface_boundary_id);
 
         // The input ascii table contains two components, the crust depth and the LAB depth
-        Utilities::AsciiDataBoundary<dim>::initialize(surface_boundary_set,7);
+        ascii_data_lab.initialize(surface_boundary_set,8);
+        ascii_data_topo.initialize(surface_boundary_set,1);
     }
 
     template <int dim>
@@ -62,14 +63,87 @@ namespace aspect
       const double depth = this->get_geometry_model().depth(position);
       std::array<double,dim> wcoord      = Utilities::Coordinates::WGS84_coordinates(position);
       wcoord[0] = depth;
-
       const Point<2> wpoint (wcoord[1], wcoord[2]);
+      const double topo = ascii_data_topo.get_data_component(surface_boundary_id, position, 0);
+      double oceanic_region =  ascii_data_lab.get_data_component(surface_boundary_id, position, 6);
+      double rho_uc; 
+      double rho_mc;
+      double rho_lc;
+      double base_of_upper_crust;
+      double base_of_middle_crust;
+      double base_of_lower_crust;
+      double lab;
 
-      const double base_of_upper_crust              = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 3);
-      const double base_of_middle_crust             = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 2);
-      const double base_of_lower_crust              = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 1);
-      const double base_of_lithosphere              = std::max(Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 0),60000.0);
+      if (use_uniform_density)
+      {
+       rho_uc = 2700.0;
+       rho_mc = 2825.0;
+       rho_lc = 3000.0;
+      }
+      else 
+      {
+       rho_uc =  ascii_data_lab.get_data_component(surface_boundary_id, position, 6);
+       rho_mc =  ascii_data_lab.get_data_component(surface_boundary_id, position, 5);
+       rho_lc =  ascii_data_lab.get_data_component(surface_boundary_id, position, 4);
+      }
+   
+      if (use_uniform_crustal_thicknesses)
+      {
+       base_of_upper_crust    = 10000.0;
+       base_of_middle_crust   = 25000.0;
+       base_of_lower_crust    = 40000.0;
+      }
+      else
+      {
+       base_of_upper_crust    = ascii_data_lab.get_data_component(surface_boundary_id, position, 3);
+       base_of_middle_crust   = ascii_data_lab.get_data_component(surface_boundary_id, position, 2);
+       base_of_lower_crust    = ascii_data_lab.get_data_component(surface_boundary_id, position, 1);
+      }
+
+      if (use_uniform_LAB)
+      {
+       lab = 100000.0;
+      }
+      else 
+      {
+        lab  = ascii_data_lab.get_data_component(surface_boundary_id, position, 0);                
+      }
+      //if (Utilities::polygon_contains_point<2>(boundaries_point_lists, wpoint) == true)
+      //        base_of_lithosphere = 175000.0;
+      double rift_width;
+      double varying_rift;
+      if (wcoord[2] > 6.0 &&  wcoord[1] < 55)
+      {
+            rift_width = 111.0;
+            varying_rift = 50000.0;
+      }
+      else if (wcoord[1] > 55)
+      {
+            rift_width = 30.0;
+            varying_rift = 40000.0;
+      }
+      else
+      {
+            rift_width = 30.0;
+            varying_rift = rift_thickness; 
+      }
       
+      double base_of_lithosphere = (lab < 90000.0)?100000.0:lab;
+      base_of_lithosphere = ( ascii_data_lab.get_data_component(surface_boundary_id, position, 7) ==1)?rift_thickness: base_of_lithosphere;
+      base_of_lithosphere =  (111*std::abs(Utilities::signed_distance_to_polygon<2>(boundaries_point_lists, wpoint )) < rift_width && wcoord[1] > 55) ? varying_rift :base_of_lithosphere;
+      bool western_branch  = (wcoord[1] < 32.0) ? true:false; 
+      base_of_lithosphere = (lab < 90000.0 && western_branch==true)?80000.0:base_of_lithosphere;
+      
+     // base_of_lithosphere = (lab > 100000.0)?150000.0:base_of_lithosphere;
+      
+      double rift  = ascii_data_lab.get_data_component(surface_boundary_id, position, 0);
+      // calculate  layers thickness. 
+      const double h_uc = base_of_upper_crust; 
+      const double h_mc = base_of_middle_crust - base_of_upper_crust;
+      const double h_lc = base_of_lower_crust -  base_of_middle_crust;
+      const double h_ml = base_of_lithosphere - base_of_lower_crust;
+      
+
       // Indexes of lithospheric compositonal fields.
       const unsigned int upper_crust_idx = this->introspection().compositional_index_for_name("upper_crust");
       const unsigned int middle_crust_idx = this->introspection().compositional_index_for_name("middle_crust");
@@ -79,24 +153,77 @@ namespace aspect
       const unsigned int upper_crust_dens_idx = this->introspection().compositional_index_for_name("upper_crust_density");
       const unsigned int middle_crust_dens_idx = this->introspection().compositional_index_for_name("middle_crust_density");
       const unsigned int lower_crust_dens_idx = this->introspection().compositional_index_for_name("lower_crust_density");
-  
-     // Lithospheric compositional fields
+      const unsigned int mantle_lithosphere_dens_idx = this->introspection().compositional_index_for_name("mantle_lithosphere_density");
+      const unsigned int plastic_strain_idx = this->introspection().compositional_index_for_name("plastic_strain");
+      //const unsigned int rifts_idx = this->introspection().compositional_index_for_name("rifts");
+      
+      // distance to polygone in km
+      double distance_to_plate_boundary = 111.0 * std::abs(Utilities::signed_distance_to_polygon<2>(boundaries_point_lists, wpoint));
+      const  Point<2> p1 (31.466, 2.420); 
+      const  Point<2> p2 (33.963, 4.280);
+      const std::array<Point<2>,2> l_1 = {p1,p2};
+      const  Point<2> p3 (33.756, -8.545);
+      const  Point<2> p4 (35.269, -7.096);
+      const std::array<Point<2>,2> l_2 = {p3,p4};
+      const  Point<2> p5 (35.269, -7.096);
+      const  Point<2> p6 (35.289, -4.328);
+      const std::array<Point<2>,2> l_3 = {p5,p6};
+
+      double seg1 =  111.0 * std::abs(Utilities::distance_to_line(l_1, wpoint));    
+      double seg2 =  111.0 * std::abs(Utilities::distance_to_line(l_2, wpoint));    
+      double seg3 =  111.0 * std::abs(Utilities::distance_to_line(l_3, wpoint));    
+      bool strong = (seg1 < 150.0 || seg2 < 150.0 || seg3 < 150.0) ? true:false;
+      base_of_lithosphere = (strong == true)?150000.0:base_of_lithosphere;
+      base_of_lithosphere = 100000.0; 
+      // Lithospheric compositional fields
       if  (depth <= base_of_upper_crust &&  n_comp == upper_crust_idx) // uppper crust
           return 1.;
       else if (depth > base_of_upper_crust && depth <= base_of_middle_crust && n_comp == middle_crust_idx) // middle_crust
           return 1.;
       else if (depth > base_of_middle_crust && depth <= base_of_lower_crust && n_comp == lower_crust_idx) // lower_crust
           return 1.;
-      else if (depth > base_of_lower_crust && depth <= base_of_lithosphere && n_comp == mantle_lithosphere_idx)  // mantle lithosphere
+      else if (depth > base_of_lower_crust && depth <  base_of_lithosphere   && n_comp == mantle_lithosphere_idx)  // mantle lithosphere
           return 1;
-      else if  (depth <= base_of_upper_crust &&  n_comp == upper_crust_dens_idx) // uppper crust
-         return Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 6);
+      else if  (depth <= base_of_upper_crust &&  n_comp == upper_crust_dens_idx)// uppper crust
+     //     return rho_uc*(topo + h_uc)/h_uc;
+            return rho_uc;
       else if (depth > base_of_upper_crust && depth <= base_of_middle_crust && n_comp == middle_crust_dens_idx) // middle_crust
-          return Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 5);
+          return rho_mc;
       else if (depth > base_of_middle_crust && depth <= base_of_lower_crust && n_comp == lower_crust_dens_idx) // lower_crust
-          return Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 4);
-       else
-        return 0.;
+          return rho_lc;
+      else if (depth > base_of_lower_crust && depth < base_of_lithosphere && n_comp == mantle_lithosphere_dens_idx) // lower_crust
+      {
+         // Compute weight of each crustal layer
+         double  w1 =  rho_uc * topo;
+         double  w2 =  rho_uc * h_uc; 
+         double  w3 =  rho_mc * h_mc;
+         double  w4 =  rho_lc * h_lc; 
+         
+         // Total weight of crust 
+         double  w_crust = w1 + w2 + w3 + w4;
+         // Compute weight of reference column. Based on Stamps et al., 2015 oceanic crust compensation.
+         double L = 100000.0;
+         double rho_ref =  3250.0;
+         
+         double  w_mm    = ((L - base_of_lithosphere) > 0.0)?(L - base_of_lithosphere)*3300.0:0.0;  
+         // Thickness of missing mantle
+         double h_mtl = L - base_of_lower_crust;
+         
+         double w_ref = rho_ref * L;
+        // Weight of missing mantle
+         double w_mtl = w_ref - (w_crust + w_mm);
+         double density_compensation =  w_mtl / h_mtl;
+       //  if (depth < L)
+       //  return density_compensation; 
+       //  else 
+         return 3300.0;
+     } 
+       else if (depth <   base_of_lithosphere   &&  base_of_lithosphere  < 90000.0 && strong == false && n_comp == plastic_strain_idx)
+       {
+        return 1.0; 
+       }
+      else
+       return 0.;
     }
 
 
@@ -106,24 +233,54 @@ namespace aspect
     {
       prm.enter_subsection("Initial composition model");
       {
-  
-    	Utilities::AsciiDataBase<dim>::declare_parameters(prm,
-    	     	    	         	                  "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
-       	     	    	         	                  "ears_synthetic_litho_with_tanzania_craton.txt");
+           prm.enter_subsection("Lithosphere");
+           {
+             prm.enter_subsection("Lithosphere file");
+             {
+              Utilities::AsciiDataBase<dim>::declare_parameters(prm,
+                                                        "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
+                                                        "ears_synthetic_litho_no_craton.txt");
+             }
+              prm.leave_subsection();
 
-        prm.enter_subsection("Lithosphere");
-        {
-          Utilities::AsciiDataBoundary<dim>::declare_parameters(prm,
-                                                             "$ASPECT_SOURCE_DIR/data/data/geometry-model/initial-topography-model/ascii-data/",
-                                                             "ears_topography.txt");
-          prm.declare_entry ("Data directory", "$ASPECT_SOURCE_DIR/data/initial-composition/ascii-data/",
+
+             prm.enter_subsection("Topography");
+             {
+               Utilities::AsciiDataBase<dim>::declare_parameters(prm,
+                                                             "$ASPECT_SOURCE_DIR/data/geometry-model/initial-topography-model/ascii-data/",
+                                                             "ears_topo.txt"); 
+              }
+          prm.leave_subsection();
+      
+          prm.declare_entry ("Data directory", "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
         	                 Patterns::DirectoryName (),
         	    	         "The path to the isotherm depth data file");
 
-          prm.declare_entry ("Craton filename",
-        	                 "plate_boundaries.txt",
-        	                 Patterns::FileName (),
-        	                 "File from which the isotherm depth data is read.");
+          prm.declare_entry ("Plate boundary file name",
+        	             "african_plate_boundary.txt",
+        	             Patterns::FileName (),
+        	             "File from which the isotherm depth data is read.");
+          prm.declare_entry ("Isostatic compenstion depth", "100000.0",
+                             Patterns::Double (0),
+                             "The depth at which pressure is equal. Units: $m");
+           prm.declare_entry ("Reference column density", "3195.8568",
+                             Patterns::Double (0),
+                             "The density of the reference column for isostatic compensation. Units: $kg/m3.");
+           prm.declare_entry ("Rift thickness", "75000.0",
+                             Patterns::Double (0),
+                             "Lithospheric thickness below which region is considered as a rift ");
+           prm.declare_entry ("Use uniform crustal thicknesses", "true",
+                             Patterns::Bool (),
+                             "Option to use uniform crustal thicknesses rather than ascii file. ");
+           prm.declare_entry ("Use uniform crustal densities", "true",
+                             Patterns::Bool (),
+                             "Option to use uniform crustal thicknesses rather than ascii file. ");
+           prm.declare_entry ("Use uniform lithospheric thickness", "true",
+                             Patterns::Bool (),
+                             "Option to use uniform crustal thicknesses rather than ascii file. ");
+           prm.declare_entry ("No topography", "false",
+                             Patterns::Bool (),
+                             "Option to use uniform crustal thicknesses rather than ascii file. ");
         }
         prm.leave_subsection();
       }
@@ -135,14 +292,35 @@ namespace aspect
     void
     Lithosphere<dim>::parse_parameters (ParameterHandler &prm)
     {
-      prm.enter_subsection("Initial composition model");
       {
-    	Utilities::AsciiDataBase<dim>::parse_parameters(prm);
         prm.enter_subsection("Lithosphere");
         {
-          data_directory = Utilities::expand_ASPECT_SOURCE_DIR (prm.get("Data directory"));
+            prm.enter_subsection("Lithosphere file");
+            {
+             ascii_data_lab.initialize_simulator (this->get_simulator());
+             ascii_data_lab.parse_parameters(prm);
+            }
+    
+            prm.leave_subsection();
+         
+           prm.enter_subsection("Topography");
+           {
+             ascii_data_topo.initialize_simulator (this->get_simulator()); 
+             ascii_data_topo.parse_parameters(prm);
+           }
+           prm.leave_subsection();
 
-          plate_boundaries_file_name   = prm.get("Craton filename");
+           data_directory = Utilities::expand_ASPECT_SOURCE_DIR (prm.get("Data directory"));
+
+          plate_boundaries_file_name         = prm.get("Plate boundary file name");
+          z_comp                             = prm.get_double ("Isostatic compenstion depth");          
+          rho_refc                           = prm.get_double ("Reference column density");          
+          rift_thickness                     = prm.get_double ("Rift thickness");
+          use_uniform_crustal_thicknesses    = prm.get_bool ("Use uniform crustal thicknesses");
+          use_uniform_density                = prm.get_bool ("Use uniform crustal densities");
+          use_uniform_LAB                    = prm.get_bool ("Use uniform lithospheric thickness");
+          no_topography                      = prm.get_bool ("No topography");
+          
         }
         prm.leave_subsection();
       }

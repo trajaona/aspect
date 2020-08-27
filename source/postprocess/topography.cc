@@ -83,16 +83,18 @@ namespace aspect
 
                 for (unsigned int corner = 0; corner < face_corners.size(); ++corner)
                   {
-                    const Point<dim> vertex = face_vals.quadrature_point(corner);
+                     const Point<dim> vertex = face_vals.quadrature_point(corner);
                     const double elevation = this->get_geometry_model().height_above_reference_surface(vertex);
                     if (write_to_file)
-                      output_file << vertex << ' '<< elevation << std::endl;
+                      output_file << vertex << ' '<< elevation << std::endl; 
                     if ( elevation > local_max_height)
                       local_max_height = elevation;
                     if ( elevation < local_min_height)
                       local_min_height = elevation;
                   }
               }
+
+
 
       //Calculate min/max topography across all processes
       const double max_topography = Utilities::MPI::max(local_max_height, this->get_mpi_communicator());

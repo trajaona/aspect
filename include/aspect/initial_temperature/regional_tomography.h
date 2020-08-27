@@ -105,8 +105,15 @@ namespace aspect
         std::vector<double> reference_Vs;
         std::string reference_profile_filename;
         bool use_reference_profile;
-        std::string data_directory;
+        bool  add_temperature_perturbation;
+        std::string data_dir;
         double heat_flow_at_lab; 
+        std::string plate_boundaries_file_name;
+
+        std::vector<Point<2>> boundaries_point_lists;
+
+
+
         /*
          * Continetal lithosphere geotherm parameters and function
          */
@@ -125,6 +132,11 @@ namespace aspect
                                             const double &upper_crust_bottom, 
                                             const double &middle_crust_bottom,
                                             const double &lower_crust_bottom) const ;
+
+       bool   use_thick_craton;
+       bool   use_uniform_crustal_thicknesses;
+       bool   use_uniform_LAB;
+
      
     };
   }

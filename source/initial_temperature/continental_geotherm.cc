@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2011 - 2019 by the authors of the ASPECT code.
+  Copyright (C) 2016 - 2018 by the authors of the ASPECT code.
 
   This file is part of ASPECT.
 
@@ -14,256 +14,484 @@
   GNU General Public License for more details.
 
   You should have received a copy of the GNU General Public License
-  along with ASPECT; see the file doc/COPYING.  If not see
+  along with ASPECT; see the file LICENSE.  If not see
   <http://www.gnu.org/licenses/>.
 */
 
-
 #include <aspect/initial_temperature/continental_geotherm.h>
-#include <aspect/utilities.h>
-#include <aspect/geometry_model/spherical_shell.h>
-#include <aspect/boundary_temperature/interface.h>
-#include <aspect/material_model/visco_plastic.h>
-#include <aspect/heating_model/interface.h>
+#include <aspect/geometry_model/interface.h>
 
-#include <cmath>
 
 namespace aspect
 {
   namespace InitialTemperature
   {
-    template <int dim>
-    ContinentalGeotherm<dim>::ContinentalGeotherm ()
-    {}
+
+   template <int dim>
+   ContinentalGeotherm<dim>::ContinentalGeotherm ()
+   :
+   surface_boundary_id(5)
+   {}
+  
+   template <int dim>
+   void
+   ContinentalGeotherm<dim>::initialize ()
+   {
+    // initialize AsciiDataInitial to read tomography file
+    Utilities::AsciiDataInitial<dim>::initialize(1);
+    // Find the boundary indicator that represents the surface
+    surface_boundary_id = this->get_geometry_model().translate_symbolic_boundary_name_to_id("outer");
+
+    std::set<types::boundary_id> surface_boundary_set;
+    surface_boundary_set.insert(surface_boundary_id);
+
+    // The input ascii table contains two components, the crust depth and the LAB depth
+    ascii_data_lab.initialize(surface_boundary_set,7);
+   }
 
 
-    template <int dim>
-    void
-    ContinentalGeotherm<dim>::
-    initialize ()
-    {
-      // Check that the required radioactive heating model ("compositional heating") is used
-      const std::vector<std::string> &heating_models = this->get_heating_model_manager().get_active_heating_model_names();
-      AssertThrow(std::find(heating_models.begin(), heating_models.end(), "compositional heating") != heating_models.end(),
-                  ExcMessage("The continental geotherm initial temperature plugin requires the compositional heating plugin."));
+   template <int dim>
+   double
+   ContinentalGeotherm<dim>::
+   ascii_grid_vs (const Point<dim> &position) const
+   {
+       return  Utilities::AsciiDataInitial<dim>::get_data_component(position,0);
+   }
 
-      // Check that the required material model ("visco plastic") is used
-      AssertThrow(Plugins::plugin_type_matches<MaterialModel::ViscoPlastic<dim> >(this->get_material_model()),
-                  ExcMessage("The continental geotherm initial temperature plugin requires the viscoplastic material model plugin."));
-    }
+   template <int dim>
+   double
+   ContinentalGeotherm<dim>::continental_geotherm_method1 (const bool &rift,
+            						  const double &z,
+                                                          const double &lithosphere_bottom,
+                                                          const double &upper_crust_bottom,
+                                                          const double &middle_crust_bottom,
+                                                          const double &lower_crust_bottom) const
+   {
+      std::vector<double> dz(5);
+      std::vector<double> Q(5);
+      std::vector<double> A(4);
+      std::vector<double> T(5);
+      double k = thermal_conductivity_of_lithosphere;
+     // Define surface heat flow for different function of regions.
+      if (rift == true)
+      {
+         Q[0] = rift_surface_heat_flow; 
+         A = {0.0,0.4e-6,0.4e-6,0.1e-6};
+      }
+      else if (rift == false && lithosphere_bottom > 100000.0)
+      {
+         Q[0] = craton_surface_heat_flow;
+         A = {0.0,0.4e-6,0.2e-6,0.1e-6}; 
+      }
+      else
+      { 
+         Q[0] = transition_surface_heat_flow; 
+         A = {0.0,0.4e-6,0.4e-6,0.1e-6};
+      }
+      
+      // Surface temperature 
+      T[0] = surface_temperature;
+      
+      // LAB isotherm temperature
+      T[4] = lab_isotherm_temperature; 
+
+      // Heat productions for each layer. 
+     A = heat_productions;
+      
+      // Calculate layers thicknesses 
+      dz[0] = upper_crust_bottom;
+      dz[1] = middle_crust_bottom - upper_crust_bottom;
+      dz[2] = lower_crust_bottom  - middle_crust_bottom;
+      dz[3] = lithosphere_bottom  - lower_crust_bottom;
+      dz[4] = lithosphere_bottom;
+
+      // Calculate radiogenic heat production in the upper crust
+       A[0] = ( ( 2*k ) / ( dz[0] * ( 2*dz[4] - dz[0] ) ) )
+              * ( T[0] - T[4] + ( ( Q[0]*dz[4] - A[1]*dz[1] * ( dz[2]+dz[3] )- A[2]*dz[2]*dz[3] ) / k ) 
+              - ( A[1]*dz[1]*dz[1] + A[2]*dz[2]*dz[2] + A[3]*dz[3]*dz[3]  ) / ( 2*k ) );
+
+      // Surface heat flows at boudaries between layers
+       Q[1] = Q[0] - A[0]*dz[0];
+       Q[2] = Q[1] - A[1]*dz[1];
+       Q[3] = Q[2] - A[2]*dz[2];
+       Q[4] = Q[3] - A[3]*dz[3];
+
+      // Calculate temperatures at top of layers
+       T[1] = T[0] + (Q[0]/k)*dz[0] - (A[0]*dz[0]*dz[0])/(2.*k);
+       T[2] = T[1] + (Q[1]/k)*dz[1] - (A[1]*dz[1]*dz[1])/(2.*k);
+       T[3] = T[2] + (Q[2]/k)*dz[2] - (A[2]*dz[2]*dz[2])/(2.*k);
+    
+    double temp;
+     if  ( z  <= upper_crust_bottom )
+        temp = T[0] + (Q[0]/k)*z - (A[0]*(z*z))/(2*k);
+     else if ( z > upper_crust_bottom && z <= middle_crust_bottom )
+        temp  = T[1] + (Q[1]/k)*(z - dz[0]) - (A[1]*((z - dz[0])*(z - dz[0])))/(2*k);
+     else if ( z > middle_crust_bottom && z <= lower_crust_bottom )
+        temp  = T[2] + (Q[2]/k)*(z-dz[0]-dz[1]) - (A[2]*((z-dz[0]-dz[1])*(z-dz[0]-dz[1])))/(2*k);
+     else 
+        temp  = T[3] + (Q[3]/k)*(z-dz[0]-dz[1]-dz[2]) - (A[3]*((z-dz[0]-dz[1]-dz[2])*(z-dz[0]-dz[1]-dz[2])))/(2*k);
+
+    return temp;
+   }
 
 
+  template <int dim>
+  double
+  ContinentalGeotherm<dim>::continental_geotherm_method2 (const double &depth,
+         		                                  const double &lithosphere_bottom,
+           		                                  const double &upper_crust_bottom,
+   			                                  const double &middle_crust_bottom,
+   			                                  const double &lower_crust_bottom) const
+   {
+           std::vector<double> dz(5);
+           std::vector<double> Q(5);
+           std::vector<double> A(4);
+           std::vector<double> T(5);
+           double k;
+           double z = depth;
+	   k = thermal_conductivity_of_lithosphere;  /* Thermal conductivity W/(m*K) */
+	   Q[4] =  heat_flow_at_lab;  /* Boundaries bottom heat flow */
+	   T[4] = lab_isotherm_temperature;
+	   A[0] = surface_temperature;
+
+	   
+           /* Generate layers thickness withing the lithosphere. */
+	   dz[0] = upper_crust_bottom;
+	   dz[1] = middle_crust_bottom - upper_crust_bottom;
+	   dz[2] = lower_crust_bottom  - middle_crust_bottom;
+	   dz[3] = lithosphere_bottom  - lower_crust_bottom;
+	   dz[4] = lithosphere_bottom;
+ 
+	   /* Calculate temperature at the top of the mantle lithosphere */
+	   T[3] = T[4] - (Q[4]/k)*dz[3] - (A[3]*dz[3]*dz[3])/(2*k);
+
+	   /* Calculate heat flow at the top of the mantle lithosphere */
+	   Q[3] = Q[4] + (A[3]*dz[3]);
+
+	   /* Calculate temperature at that the top of the lower crust */
+	   T[2] = T[3] - (Q[3]/k)*dz[2] - (A[2]*dz[2]*dz[2])/(2.0*k);
+
+	   /* Calculate heat flow at the top of the lower crust */
+	   Q[2] = Q[3] + (A[2]*dz[2]);
+
+	   /* Calculate heat flow at the top of the middle crust */
+	   T[1] = T[2] - (Q[2]/k)*dz[1] - (A[1]*dz[1]*dz[1]) / (2.0*k);
+
+	   /* Calculate heat flow at the top of the middle crust*/
+           Q[1] = Q[2] + (A[1]*dz[1]);
+
+	   /* Calculate radiogenic heat concentration at the top of the upper crust */
+	   A[0] = (T[1] -T[0] - (Q[1]/k)*dz[0]) * (2.0*k) / (dz[0]*dz[0]);
+
+	   /* Calculate heat flow at the top of the upper crust */
+	   Q[0] = Q[1] + (A[0]*dz[0]);
+
+       /* calculate temperature as function of depth */
+	   double temp;
+       if ( z  <= upper_crust_bottom )
+    	  temp =  T[0] + (Q[0]/k)*z - ( A[0]*(z*z)) / (2*k);
+       else if ( z > upper_crust_bottom && z <= middle_crust_bottom )
+    	  temp = T[1] + (Q[1]/k)*(z - dz[0]) - (A[1]*((z - dz[0])*(z - dz[0]))) / (2*k);
+       else if ( z > middle_crust_bottom && z <= lower_crust_bottom )
+    	  temp =  T[2] + (Q[2]/k)*(z - dz[0]-dz[1]) - (A[2]*((z - dz[0]-dz[1])*(z - dz[0]-dz[1])))/ (2*k);
+       else
+    	  temp = T[3] + (Q[3]/k)*(z-dz[0]-dz[1]-dz[2]) - (A[3]*((z-dz[0]-dz[1]-dz[2])*(z-dz[0]-dz[1]-dz[2])))/(2*k);
+      
+       return temp;
+   }
+    
     template <int dim>
     double
-    ContinentalGeotherm<dim>::
-    initial_temperature (const Point<dim> &position) const
+    ContinentalGeotherm<dim>::initial_temperature (const Point<dim> &position) const
     {
-      // Get the depth of the point with respect to the reference surface.
-      const double depth = this->get_geometry_model().depth(position);
+        const double depth = this->get_geometry_model().depth(position);
+        double vs_perturbation = 0.0;
+        std::array<double,dim> wcoord      = Utilities::Coordinates::WGS84_coordinates(position);
+        const Point<2> wpoint (wcoord[1], wcoord[2]);       
 
-      // Compute some constants to calculate the temperatures T1 and T2 at the interfaces
-      // between the layers upper crust/lower crust (depth y=h1) and lower crust/lithospheric mantle (depth y=h1+h2).
-      // T1 = (ab + k2/h2 cdb) / (1 - k2^2/h2^2 db)
-      // T2 = (c + k2/h2 T1) d
-      // These derivations are based on the assumption that at the boundary between
-      // the layers, the heat flows of the two layers are equal, so
-      // at y=h1, q1(h1)=q2(h2)=k1 dT1/dy|h1 = k2 dT2/dy|h2 etc.
-      const double a = 0.5*densities[0]*heat_productivities[0]*thicknesses[0] + 0.5*densities[1]*heat_productivities[1]*thicknesses[1] + conductivities[0]/thicknesses[0]*T0;
-      const double b = 1./(conductivities[0]/thicknesses[0]+conductivities[1]/thicknesses[1]);
-      const double c = 0.5*densities[1]*heat_productivities[1]*thicknesses[1] + conductivities[2]/thicknesses[2]*LAB_isotherm;
-      const double d = 1./(conductivities[1]/thicknesses[1]+conductivities[2]/thicknesses[2]);
+       //   Read ascii data file containing depth of lithospheric layers. 
+        const double rho_uc =  ascii_data_lab.get_data_component(surface_boundary_id, position, 6); 
+        double isotherm_depth;
+        double upper_crust_bottom;
+        double middle_crust_bottom; 
+        double lower_crust_bottom;
+ 
+        if (use_uniform_crustal_thicknesses)
+        {
+           upper_crust_bottom  = 10000.0;
+           middle_crust_bottom = 25000.0;
+           lower_crust_bottom  = 40000.0; 
+        }
+        else
+        {
+           upper_crust_bottom   =  ascii_data_lab.get_data_component(surface_boundary_id, position, 3);
+           middle_crust_bottom  =  ascii_data_lab.get_data_component(surface_boundary_id, position, 2);
+           lower_crust_bottom   =  ascii_data_lab.get_data_component(surface_boundary_id, position, 1);
+        }
+        
+        if (use_uniform_LAB)
+           isotherm_depth = 100000.0;
+        else 
+           isotherm_depth =  ascii_data_lab.get_data_component(surface_boundary_id, position, 0);
+           
+        double temperature_perturbation = 0.0;
+        double lab_temperature;
+        aspect::Utilities::tk::spline s;
+        s.set_points(spline_depths, reference_Vs);
+         
+        if (use_reference_profile)
+        {
+               vs_perturbation = (ascii_grid_vs(position) - s(depth))/s(depth);
+        }
+        else
+               vs_perturbation = ascii_grid_vs(position)*0.01;
 
-      // Temperature at boundary between layer 1 and 2
-      const double T1 = (a*b + conductivities[1]/thicknesses[1]*c*d*b) / (1.-(conductivities[1]*conductivities[1])/(thicknesses[1]*thicknesses[1])*d*b);
-      // Temperature at boundary between layer 2 and 3
-      const double T2 = (c + conductivities[1]/thicknesses[1]*T1) * d;
+    	 // scale the density perturbation into a temperature perturbation. Velocity perturbation make sense only above 400Km depth. Do not apply perturbation below that
+    	 // Set a maximum perturbation to 500 K and minimum -500 K. DO TO: Find a more resonnable perturbation value. 
+        double max_grid_depth = 410000.0;
+        if (depth < max_grid_depth && depth > isotherm_depth)
+           {
+               // scale the density perturbation into a temperature perturbation
+              temperature_perturbation = -1./thermal_alpha * vs_to_density * vs_perturbation;
+              temperature_perturbation = std::min(std::max(temperature_perturbation, -200.0),200.0);
+           }
+         else
+           {
+              // set heterogeneity to zero down to a specified depth
+               temperature_perturbation = 0.0;
+           }
+    
+           if (add_temperature_perturbation == false)
+              temperature_perturbation = 0.0;
+     
+        const bool rift = (111*std::abs(Utilities::signed_distance_to_polygon<2>(boundaries_point_lists, wpoint )) < 50000.0) ? true: false;   
+        double temperature;
+        if (depth < isotherm_depth)
+        {
+           //double ridge_temp = (111*std::abs(Utilities::signed_distance_to_polygon<2>(boundaries_point_lists, wpoint )) < 30)?200.0:0.0;
+            // Sometimes the temperature at the surface become negative so set it to 298 K. 
+            temperature =  continental_geotherm_method1 (rift,depth, isotherm_depth, upper_crust_bottom, middle_crust_bottom, lower_crust_bottom);
+        }
+        else 
+            temperature =  lab_isotherm_temperature + (depth - isotherm_depth) * 0.0005;
 
-      // Temperature in layer 1
-      if (depth <= thicknesses[0])
-        return -0.5*densities[0]*heat_productivities[0]/conductivities[0]*std::pow(depth,2) + (0.5*densities[0]*heat_productivities[0]*thicknesses[0]/conductivities[0] + (T1-T0)/thicknesses[0])*depth + T0;
-      // Temperature in layer 2
-      else if (depth <= thicknesses[0]+thicknesses[1])
-        return -0.5*densities[1]*heat_productivities[1]/conductivities[1]*std::pow(depth-thicknesses[0],2.) + (0.5*densities[1]*heat_productivities[1]*thicknesses[1]/conductivities[1] + (T2-T1)/thicknesses[1])*(depth-thicknesses[0]) + T1;
-      // Temperature in layer 3
-      else if (depth <= thicknesses[0]+thicknesses[1]+thicknesses[2])
-        return (LAB_isotherm-T2)/thicknesses[2] *(depth-thicknesses[0]-thicknesses[1]) + T2;
-      // Return an unrealistically high temperature if we're below the lithosphere.
-      // This way we can combine the continental geotherm with an adiabatic profile from the input file
-      // using the "minimum" operator on the "List of initial temperature models"
-      else
-        return std::numeric_limits<double>::max();
+
+        return temperature;
     }
-
-
 
     template <int dim>
     void
-    ContinentalGeotherm<dim>::declare_parameters (ParameterHandler &prm)
+    ContinentalGeotherm<dim>::declare_parameters(ParameterHandler &prm)
     {
       prm.enter_subsection ("Initial temperature model");
       {
         prm.enter_subsection("Continental geotherm");
         {
-          prm.declare_entry ("Layer thicknesses", "30000.",
-                             Patterns::List(Patterns::Double(0)),
-                             "List of the 3 thicknesses of the lithospheric layers "
-                             "'upper\\_crust', 'lower\\_crust' and 'mantle\\_lithosphere'. "
-                             "If only one thickness is given, then the same thickness is used "
-                             "for all layers. Units: $m$");
-          prm.declare_entry ("Surface temperature", "273.15",
+           prm.enter_subsection("Lithospheric thickness file");
+           {
+                   Utilities::AsciiDataBoundary<dim>::declare_parameters(prm,
+                                                            "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
+                                                            "Emry.litho.aspect.input.txt");
+           }
+           prm.leave_subsection();
+
+
+    
+            prm.declare_entry ("Thermal expansion coefficient", "4e-5",
+          	                 Patterns::Double (0),
+                             "The value of the thermal expansion coefficient $\\alpha$. "
+                             "Units: $1/K$.");
+            prm.declare_entry ("Vs to density", "0.2",
+                      	     Patterns::Double (0),
+                      	     "Vs to density scaling factor");
+            prm.declare_entry ("Surface heat flow", "0.04",
                              Patterns::Double (0),
-                             "The value of the surface temperature. Units: $\\si{K}$.");
-          prm.declare_entry ("Lithosphere-Asthenosphere boundary isotherm", "1673.15",
+                             "Heat flow at the surface. "
+							 "Units: W.m^-2");
+            prm.declare_entry ("Surface temperature", "293",
                              Patterns::Double (0),
-                             "The value of the isotherm that is assumed at the Lithosphere-"
-                             "Asthenosphere boundary. Units: $\\si{K}$.");
+                             "Temperature at the surface or top boundary of the model. "
+							 "Units: K");
+            prm.declare_entry ("LAB isotherm temperature", "1600",
+                              Patterns::Double (0),
+                              "Isother temperatue at the LAB. "
+							  "Units: K");
+            prm.declare_entry ("Heat productions in the lithosphere", "0.4e-7",
+                               Patterns::List(Patterns::Double(0)),
+                               "Heat productions in the upper crust, middle crust, lower crust and mantle lithosphere. "
+                               "Unites: ");
+            prm.declare_entry ("Thermal conductivity of the lithosphere", "3.0",
+                               Patterns::List(Patterns::Double(0)),
+                               "Thermal conductivy of the lithosphere. It is used to calculate continetal geotherm. "
+                               "Unites: W/(m*K)");
+            prm.declare_entry ("Heat flow at LAB", "0.03",
+                               Patterns::List(Patterns::Double(0)),
+                               "Thermal conductivy of the lithosphere. It is used to calculate continetal geotherm. "
+                               "Unites: (W/m^2)");
+            prm.declare_entry ("Heat production in the lithosphere", "0.1",
+                               Patterns::List(Patterns::Double(0)),
+                               "List of heat production values in the upper crust, middle crust, "
+                               "lower crust and mantle lithosphere respectively.  Units: W.m^3");
+            Utilities::AsciiDataBase<dim>::declare_parameters(prm,
+                                                              "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
+                                                              "Emry_shear_wave_velocity.txt");
+            prm.declare_entry ("Data directory", "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
+                             Patterns::DirectoryName (),
+                             "Directory where the reference profile file is located.");
+
+            prm.declare_entry ("Reference profile filename",
+                             "AK135F_AVG.txt",
+                             Patterns::FileName (),
+                             "File from which the isotherm depth data is read.");
+
+            prm.declare_entry ("Use reference profile", "false",
+                             Patterns::Bool (),
+                             "Option to take the thermal expansion coefficient from the "
+                             "material model instead of from what is specified in this "
+                             "section.");
+            prm.declare_entry ("Use temperature perturbation", "false",
+                             Patterns::Bool (),
+                             "Option to take the thermal expansion coefficient from the "
+                             "material model instead of from what is specified in this "
+                             "section.");
+            prm.declare_entry ("Maximum rift thickness", "75000.0",
+                             Patterns::Double (0),
+                             "Maximum lithospheric thickness below which region is considered as a rift ");
+            prm.declare_entry ("Minimum craton thickness", "150000.0",
+                              Patterns::Double (0),
+                             "Minimum lithospheric thickness above which region is considered as a craton ");
+            prm.declare_entry ("Surface heat flow at rift regions", "0.08",
+                              Patterns::Double (0),
+                             "Surface heat flow at rift regions");
+            prm.declare_entry ("Surface heat flow at transition", "0.06",
+                              Patterns::Double (0),
+                             "Surface heat flow at normal lithospheric regions or transition");
+            prm.declare_entry ("Surface heat flow at cratonic regions", "0.05",
+                              Patterns::Double (0),
+                             "Surface heat flow at cratonic regions");
+            prm.declare_entry ("Craton filename",
+                              "african_plate_boundary.txt",
+                              Patterns::FileName (),
+                              "File from which the isotherm depth data is read."); 
+            prm.declare_entry ("Use uniform crustal layers thicknesses", "true",
+                              Patterns::Bool (),
+                             "Option to use uniform crustal thicknesses instead of reading it from file. ");
+            prm.declare_entry ("Use uniform lithosphere thickness", "true",
+                              Patterns::Bool (),
+                             "Option to use uniform lithospherick thicknesses instead of reading it from file. ");
+            prm.declare_entry ("Add thick craton", "false",
+                              Patterns::Bool (),
+                             "Option to add thick craton at region define in the ascii data file. ");
+
         }
-        prm.leave_subsection();
+      prm.leave_subsection();
       }
       prm.leave_subsection();
+
     }
-
-
 
     template <int dim>
     void
-    ContinentalGeotherm<dim>::parse_parameters (ParameterHandler &prm)
+    ContinentalGeotherm<dim>::parse_parameters(ParameterHandler &prm)
     {
-      unsigned int n_fields = 0;
-      prm.enter_subsection ("Compositional fields");
-      {
-        n_fields = prm.get_integer ("Number of fields");
-      }
-      prm.leave_subsection();
-
-
       prm.enter_subsection ("Initial temperature model");
       {
         prm.enter_subsection("Continental geotherm");
         {
-          LAB_isotherm = prm.get_double ("Lithosphere-Asthenosphere boundary isotherm");
-          T0 = prm.get_double ("Surface temperature");
-          thicknesses = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Layer thicknesses"))),
-                                                                3,
-                                                                "Layer thicknesses");
+          prm.enter_subsection("Lithospheric thickness file");
+          {
+               ascii_data_lab.initialize_simulator (this->get_simulator());
+
+      // Note: parse_parameters will call initialize for us
+               ascii_data_lab.parse_parameters(prm);
+          }
+          prm.leave_subsection();
+
+          vs_to_density                         = prm.get_double ("Vs to density");
+          thermal_alpha                         = prm.get_double ("Thermal expansion coefficient");
+          lab_isotherm_temperature              = prm.get_double ("LAB isotherm temperature");
+          maximum_rift_thickness                = prm.get_double ("Maximum rift thickness"); 
+          minimum_craton_thickness              = prm.get_double ("Minimum craton thickness");
+          rift_surface_heat_flow                = prm.get_double ("Surface heat flow at rift regions"); 
+          transition_surface_heat_flow          = prm.get_double ("Surface heat flow at transition");
+          craton_surface_heat_flow              = prm.get_double ("Surface heat flow at cratonic regions");
+          surface_temperature                   = prm.get_double ("Surface temperature");
+          thermal_conductivity_of_lithosphere   = prm.get_double ("Thermal conductivity of the lithosphere");
+          heat_flow_at_lab                      = prm.get_double ("Heat flow at LAB");
+          reference_profile_filename            = prm.get ("Reference profile filename");
+          data_directory                        = Utilities::expand_ASPECT_SOURCE_DIR(prm.get ("Data directory")); 
+          use_reference_profile                 = prm.get_bool ("Use reference profile");
+          add_temperature_perturbation          = prm.get_bool ("Use temperature perturbation");
+          plate_boundaries_file_name            = prm.get("Craton filename");
+          use_thick_craton                      = prm.get_bool ("Add thick craton");
+          use_uniform_crustal_thicknesses       = prm.get_bool ("Use uniform lithosphere thickness");
+          use_uniform_LAB                       = prm.get_bool ("Use uniform crustal layers thicknesses");
+     
+          heat_productions = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Heat production in the lithosphere"))),
+                                                                     4,
+                                                                     "Heat production in the lithosphere");
+          Utilities::AsciiDataBase<dim>::parse_parameters(prm);
         }
         prm.leave_subsection();
       }
       prm.leave_subsection();
+     
+      if (use_reference_profile)
+      { 
+      const std::string filename = data_directory+reference_profile_filename;
+      
+      /**
+ *        * Read data from disk and distribute among processes
+ *               */
+      std::istringstream in(Utilities::read_and_distribute_file_content(filename, this->get_mpi_communicator()));
 
-
-      // Retrieve the indices of the fields that represent the lithospheric layers.
-      AssertThrow(this->introspection().compositional_name_exists("upper_crust"),ExcMessage("We need a compositional field called 'upper_crust' representing the upper crust."));
-      AssertThrow(this->introspection().compositional_name_exists("lower_crust"),ExcMessage("We need a compositional field called 'lower_crust' representing the lower crust."));
-      AssertThrow(this->introspection().compositional_name_exists("lithospheric_mantle"),ExcMessage("We need a compositional field called 'lithospheric_mantle' representing the lithospheric part of the mantle."));
-
-      // For now, we assume a 3-layer system with an upper crust, lower crust and lithospheric mantle
-      const unsigned int id_upper_crust = this->introspection().compositional_index_for_name("upper_crust");
-      const unsigned int id_lower_crust = this->introspection().compositional_index_for_name("lower_crust");
-      const unsigned int id_lithospheric_mantle = this->introspection().compositional_index_for_name("lithospheric_mantle");
-
-      // Retrieve other material properties set in different sections such that there
-      // is no need to set them twice.
-
-      prm.enter_subsection("Heating model");
-      {
-        prm.enter_subsection("Compositional heating");
+      /**
+       * Reading data lines.
+       */
+      double depths, ref_vs;
+      while (in >> depths >> ref_vs)
         {
-          // The heating model compositional heating prefixes an entry for the background material
-          const std::vector<double> temp_heat_productivities = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Compositional heating values"))),
-                                                               n_fields+1,
-                                                               "Compositional heating values");
-          // This sets the heat productivity in W/m3 units
-          heat_productivities.push_back(temp_heat_productivities[id_upper_crust+1]);
-          heat_productivities.push_back(temp_heat_productivities[id_lower_crust+1]);
-          heat_productivities.push_back(temp_heat_productivities[id_lithospheric_mantle+1]);
+          spline_depths.push_back(depths);
+          reference_Vs.push_back(ref_vs);
         }
-        prm.leave_subsection();
+  
       }
-      prm.leave_subsection();
+    
+       /*Read craton file */
+      const std::string filename = data_directory+plate_boundaries_file_name;
 
-      prm.enter_subsection("Material model");
+      /**
+       * Read data from disk and distribute among processes
+       */
+       std::istringstream in(Utilities::read_and_distribute_file_content(filename, this->get_mpi_communicator()));
+
+      /**
+       * Reading data lines
+       */
+       double longitude, latitude;
+
+      while (in >> longitude >> latitude)
       {
-        prm.enter_subsection("Visco Plastic");
-        {
-          // The material model viscoplastic prefixes an entry for the background material, hence n_fields+1
-          const std::vector<double> temp_densities = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Densities"))),
-                                                     n_fields+1,
-                                                     "Densities");
-          const std::vector<double> temp_thermal_diffusivities = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Thermal diffusivities"))),
-                                                                 n_fields+1,
-                                                                 "Thermal diffusivities");
-          const std::vector<double> temp_heat_capacities = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Heat capacities"))),
-                                                           n_fields+1,
-                                                           "Heat capacities");
-
-          // The material model viscoplastic prefixes an entry for the background material, hence id+1
-          densities.push_back(temp_densities[id_upper_crust+1]);
-          densities.push_back(temp_densities[id_lower_crust+1]);
-          densities.push_back(temp_densities[id_lithospheric_mantle+1]);
-
-          // Thermal diffusivity kappa = k/(rho*cp), so thermal conductivity k = kappa*rho*cp.
-          // The densities are already in the right order, so we don't need to use the compositional
-          // field ids.
-          conductivities.push_back(temp_thermal_diffusivities[id_upper_crust+1] * densities[0] * temp_heat_capacities[id_upper_crust+1]);
-          conductivities.push_back(temp_thermal_diffusivities[id_lower_crust+1] * densities[1] * temp_heat_capacities[id_lower_crust+1]);
-          conductivities.push_back(temp_thermal_diffusivities[id_lithospheric_mantle+1] * densities[2] * temp_heat_capacities[id_lithospheric_mantle+1]);
-
-          // To obtain the radioactive heating rate in W/kg, we divide the volumetric heating rate by density
-          AssertThrow(heat_productivities.size() == 3 && densities.size() == 3 && conductivities.size() == 3,
-                      ExcMessage("The entries for density, conductivity and heat production do not match with the expected number of layers (3)."))
-
-          for (unsigned int i = 0; i<3; ++i)
-            heat_productivities[i] /= densities[i];
-        }
-        prm.leave_subsection();
+          Point<2> point (longitude,latitude);
+          boundaries_point_lists.push_back(point);
       }
-      prm.leave_subsection();
-    }
+
+    
+     }
+
   }
-
 
 }
 
 
 
-
-// explicit instantiations
 namespace aspect
 {
   namespace InitialTemperature
   {
     ASPECT_REGISTER_INITIAL_TEMPERATURE_MODEL(ContinentalGeotherm,
                                               "continental geotherm",
-                                              "This is a temperature initial condition that "
-                                              "computes a continental geotherm based on the solution of the "
-                                              "steady-state conductive equation $k\\frac{d^2 T}{dy^2}+\\rho H = 0$ "
-                                              "as described in e.g. Turcotte and Schubert, "
-                                              "Ch. 4.6, or Chapman (1986). As boundary conditions, we take the surface temperature and "
-                                              "the temperature of the Lithosphere-Asthenosphere Boundary (LAB). "
-                                              "\n"
-                                              "The geotherm is computed for a homogeneous lithosphere "
-                                              "composed of an upper crust, lower crust and mantle layer. "
-                                              "The crustal layers are assumed to have a constant radioactive heating, "
-                                              "and all layers are assumed to have a constant thermal conductivity. "
-                                              "Layer thicknesses, surface temperature and LAB temperature "
-                                              "should be specified by the user. "
-                                              "For consistency, the density, heat production and thermal "
-                                              "conductivity of each layer are read from the visco plastic material model "
-                                              "and the compositional heating model. "
-                                              "\n"
-                                              "For any depths below the depth of the LAB, a unrealistically high "
-                                              "temperature is returned, such that this plugin can be combined with "
-                                              "another temperature plugin through the 'minimum' operator. "
-                                              "\n"
-                                              "Note that the current implementation only works for a 3-layer lithosphere, "
-                                              "even though in principle the heat conduction equation can be solved "
-                                              "for any number of layers. The naming of the compositional fields "
-                                              "that represent the layers is also very specific, namely `upper\\_crust', "
-                                              "`lower\\_crust', and `lithospheric\\_mantle'. "
-                                              "\n"
-                                              "Make sure the top and bottom temperatures of the lithosphere "
-                                              "agree with temperatures set in for example the temperature "
-                                              "boundary conditions.")
+                                              "An initial temperature condition that allows for discretizing "
+                                              "is designed specifically for the ellipsoidal chunk geometry model.")
   }
 }

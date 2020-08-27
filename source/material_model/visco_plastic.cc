@@ -123,12 +123,13 @@ namespace aspect
                                ref_strain_rate
                                :
                                std::max(std::sqrt(std::fabs(second_invariant(deviator(strain_rate)))),
-                                        min_strain_rate) );
+                                        min_strain_rate));
 
       // Choice of activation volume depends on whether there is an adiabatic temperature
       // gradient used when calculating the viscosity. This allows the same activation volume
       // to be used in incompressible and compressible models.
-      const double temperature_for_viscosity = temperature + adiabatic_temperature_gradient_for_viscosity*pressure;
+      //const double temperature_for_viscosity = temperature + adiabatic_temperature_gradient_for_viscosity*pressure;
+      const double temperature_for_viscosity = temperature;
       Assert(temperature_for_viscosity != 0, ExcMessage(
                "The temperature used in the calculation of the visco-plastic rheology is zero. "
                "This is not allowed, because this value is used to divide through. It is probably "
@@ -166,11 +167,13 @@ namespace aspect
 
           // Select what form of viscosity to use (diffusion, dislocation or composite)
           double viscosity_pre_yield = 0.0;
-          if (j==0)
+          std::vector<double>::const_iterator max_volume_fraction = std::max_element(volume_fractions.begin(),volume_fractions.end());        
+          
+          if (std::distance(volume_fractions.begin(),max_volume_fraction) == 0)
           {
-          viscosity_diffusion =  std::min(std::max(viscosity_diffusion, min_visc), max_visc);
-          viscosity_dislocation =  std::min(std::max(viscosity_dislocation, min_visc), max_visc);
-          viscosity_pre_yield = (viscosity_diffusion * viscosity_dislocation)/(viscosity_diffusion + viscosity_dislocation);
+             viscosity_diffusion    = std::min(std::max(viscosity_diffusion, min_visc), max_visc);
+             viscosity_dislocation  = std::min(std::max(viscosity_dislocation, min_visc), max_visc);
+             viscosity_pre_yield    = (viscosity_diffusion * viscosity_dislocation)/(viscosity_diffusion + viscosity_dislocation);
           }
           else
           {
@@ -198,7 +201,7 @@ namespace aspect
               }
             }
             }
-
+            
 
           // Second step: strain weakening
 
@@ -225,6 +228,8 @@ namespace aspect
 
           // Select if yield viscosity is based on Drucker Prager or stress limiter rheology
           double viscosity_yield = viscosity_pre_yield;
+         if (std::distance(volume_fractions.begin(),max_volume_fraction) != 0)
+         {
           switch (yield_type)
             {
               case stress_limiter:
@@ -238,7 +243,9 @@ namespace aspect
               {
                 // If the viscous stress is greater than the yield strength, rescale the viscosity back to yield surface
                 if (viscous_stress >= plastic_out.yield_strength)
+                 {
                   viscosity_yield = plastic_out.plastic_viscosity;
+                 }
                 break;
               }
               default:
@@ -247,10 +254,21 @@ namespace aspect
                 break;
               }
             }
-
+         }
+          //  if (Use_uniform_compositional_viscosities == true &&   Use_sublitho_composite == false)
+          //   {
+         //       composition_viscosities[j]  =  uniform_viscosities[j];
+         //    }
+         //   else if (Use_uniform_compositional_viscosities == true &&   Use_sublitho_composite == true)
+         //   {
+         //     composition_viscosities[j] = (std::distance(volume_fractions.begin(),max_volume_fraction) == 0)
+         //                                   ?
+         //                                   std::min(std::max(viscosity_yield, min_visc), max_visc)
+         //                                   :
+            //                                uniform_viscosities[j];
+     
           // Limit the viscosity with specified minimum and maximum bounds
           composition_viscosities[j] = std::min(std::max(viscosity_yield, min_visc), max_visc);
-
         }
       return std::make_pair (composition_viscosities, composition_yielding);
     }
@@ -581,6 +599,8 @@ namespace aspect
           composition_mask.set(this->introspection().compositional_index_for_name("upper_crust_density"),false);
           composition_mask.set(this->introspection().compositional_index_for_name("middle_crust_density"),false);
           composition_mask.set(this->introspection().compositional_index_for_name("lower_crust_density"),false);
+          composition_mask.set(this->introspection().compositional_index_for_name("mantle_lithosphere_density"),false);
+          composition_mask.set(this->introspection().compositional_index_for_name("plastic_strain"),false);
 
       return composition_mask;
     }
@@ -1017,6 +1037,31 @@ namespace aspect
                              "Using a pressure gradient of 32436 Pa/m, then a value of "
                              "0.3 $K/km$ = 0.0003 $K/m$ = 9.24e-09 $K/Pa$ gives an earth-like adiabat."
                              "Units: $K/Pa$");
+           prm.declare_entry ("Use uniform viscosity", "true",
+                             Patterns::Selection("true|false|default"),
+                             "Apply strain weakening to viscosity, cohesion and internal angle "
+                             "of friction based on accumulated finite strain.  Units: None. "
+                             "By default, this parameter is set to false. The default option is there "
+                             "to make sure that the parameter is not used at the same time as the "
+                             "``Strain weakening mechanism'' parameter, which has the same functionality. "
+                             "This parameter is deprecated; please use ``Strain weakening mechanism'' "
+                             "instead!");
+            prm.declare_entry ("Use sublithospheric composite rheology", "false",
+                             Patterns::Selection("true|false|default"),
+                             "Apply strain weakening to viscosity, cohesion and internal angle "
+                             "of friction based on accumulated finite strain.  Units: None. "
+                             "By default, this parameter is set to false. The default option is there "
+                             "to make sure that the parameter is not used at the same time as the "
+                             "``Strain weakening mechanism'' parameter, which has the same functionality. "
+                             "This parameter is deprecated; please use ``Strain weakening mechanism'' "
+                             "instead!");
+
+           prm.declare_entry ("Uniform compositional viscosities", "1e22",
+                             Patterns::List(Patterns::Double(0)),
+                             "List of stress exponents, $n_{\\text{dislocation}}$, for background material and compositional fields, "
+                             "for a total of N+1 values, where N is the number of compositional fields. "
+                             "If only one value is given, then all use the same value.  Units: None");
+
         }
         prm.leave_subsection();
       }
@@ -1050,6 +1095,8 @@ namespace aspect
           min_visc = prm.get_double ("Minimum viscosity");
           max_visc = prm.get_double ("Maximum viscosity");
           ref_visc = prm.get_double ("Reference viscosity");
+          Use_uniform_compositional_viscosities = prm.get_bool ("Use uniform viscosity"); 
+          Use_sublitho_composite = prm.get_bool ("Use sublithospheric composite rheology"); 
 
           thermal_diffusivities = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Thermal diffusivities"))),
                                                                           n_fields,
@@ -1208,6 +1255,13 @@ namespace aspect
           friction_strain_weakening_factors = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Friction strain weakening factors"))),
                                                                                       n_fields,
                                                                                       "Friction strain weakening factors");
+
+
+
+        if (Use_uniform_compositional_viscosities == true)
+             uniform_viscosities = Utilities::possibly_extend_from_1_to_N (Utilities::string_to_double(Utilities::split_string_list(prm.get("Uniform compositional viscosities"))),
+                                                                                      n_fields,
+                                                                                      "Uniform compositional viscosities");
 
           viscosity_averaging = MaterialUtilities::parse_compositional_averaging_operation ("Viscosity averaging scheme",
                                 prm);

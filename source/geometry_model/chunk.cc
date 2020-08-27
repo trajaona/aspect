@@ -548,7 +548,8 @@ namespace aspect
       // depth is therefore always positive
       const double outer_radius = manifold.get_radius(position);
       const Point<dim> rtopo_phi_theta = manifold.pull_back_sphere(position);
-      Assert (rtopo_phi_theta[0] <= outer_radius, ExcMessage("The radius is bigger than the maximum radius."));
+
+      //Assert (rtopo_phi_theta[0] <= outer_radius, ExcMessage("The radius is bigger than the maximum radius."));
       return std::max(0.0, outer_radius - rtopo_phi_theta[0]);
     }
 
