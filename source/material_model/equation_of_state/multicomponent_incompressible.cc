@@ -47,8 +47,8 @@ namespace aspect
                 else if (c == this->introspection().compositional_index_for_name("mantle_lithosphere")+1)
                     out.densities[c] =  in.composition[q][this->introspection().compositional_index_for_name("mantle_lithosphere_density")];
                 else if (c == 0)
-                   out.densities[c] =  densities[c];
-                  //    out.densities[c] =  densities[c] * (1 - thermal_expansivities[c] * (in.temperature[q] - reference_T)); 
+                //   out.densities[c] =  densities[c];
+                    out.densities[c] =  densities[c] * (1 - thermal_expansivities[c] * (in.temperature[q] - reference_T)); 
                 else 
                  out.densities[c] =  densities[c];
             out.thermal_expansion_coefficients[c] = thermal_expansivities[c];

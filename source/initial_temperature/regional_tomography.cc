@@ -72,12 +72,12 @@ namespace aspect
       double k = thermal_conductivity_of_lithosphere;
 
      // Define surface heat flow for different function of regions.
-      if (lithosphere_bottom < 90000.0)
+      if (lithosphere_bottom < 99000.0)
       {
          Q[0] = rift_surface_heat_flow; 
          A = {0.0,0.4e-6,0.4e-6,0.1e-6};
       }
-      else if (lithosphere_bottom > 100000.0)
+      else if (lithosphere_bottom > 140000.0)
       {
          Q[0] = craton_surface_heat_flow;
          A = {0.0,0.4e-6,0.2e-6,0.1e-6}; 
@@ -228,53 +228,11 @@ namespace aspect
            lower_crust_bottom   =      ascii_data_lab.get_data_component(surface_boundary_id, position, 1);
         }
         
-        if (use_uniform_LAB)
-           isotherm_depth = 100000.0;
-        else 
-           isotherm_depth =    ascii_data_lab.get_data_component(surface_boundary_id, position, 0);
-           
-        isotherm_depth = (isotherm_depth < 90000.0)? 100000.0:isotherm_depth;
-        double rift_width;
-        double rift_thickness; 
-        if (wcoord[2] > 6.0 &&  wcoord[1] < 55)
-        {
-            rift_width = 0.0;
-            rift_thickness = 60000.0;
-        }
-        else if (wcoord[1] > 55)
-        {
-            rift_width = 30.0;
-            rift_thickness = 70000.0;
-        }
-        else 
-        {
-            rift_width = 0.0;
-            rift_thickness =  maximum_rift_thickness;
-        }
-
-        isotherm_depth = (  ascii_data_lab.get_data_component(surface_boundary_id, position, 7)==1)? rift_thickness  :isotherm_depth;
-        isotherm_depth = (111*std::abs(Utilities::signed_distance_to_polygon<2>(boundaries_point_lists, wpoint )) < rift_width)? rift_thickness  : isotherm_depth;
-        bool western_branch  = (wcoord[1] < 32.0) ? true:false;
-        isotherm_depth = (isotherm_depth < 90000.0 && western_branch == true)?( rift_thickness + 5):isotherm_depth;
-        isotherm_depth = (isotherm_depth > 100000.0)? 150000.0:isotherm_depth;
-
-        // Discontinous rift
-      const  Point<2> p1 (31.466, 2.420);
-      const  Point<2> p2 (33.1, 4.280);
-      const std::array<Point<2>,2> l_1 = {p1,p2};
-      const  Point<2> p3 (33.756, -8.545);
-      const  Point<2> p4 (35.269, -7.096);
-      const std::array<Point<2>,2> l_2 = {p3,p4};
-      const  Point<2> p5 (35.369, -7.096);
-      const  Point<2> p6 (35.389, -4.328);
-      const std::array<Point<2>,2> l_3 = {p5,p6};
-
-      double seg1 =  111.0 * std::abs(Utilities::distance_to_line(l_1, wpoint));
-      double seg2 =  111.0 * std::abs(Utilities::distance_to_line(l_2, wpoint));
-      double seg3 =  111.0 * std::abs(Utilities::distance_to_line(l_3, wpoint));
-      bool strong = (seg1 < 170.0 || seg2 < 150.0 || seg3 < 175.0) ? true:false;
- 
-        isotherm_depth = (strong == true)? 150000.0:isotherm_depth;
+        isotherm_depth =    ascii_data_lab.get_data_component(surface_boundary_id, position, 0);
+        isotherm_depth = (isotherm_depth > 99000.0 && isotherm_depth < 120010.0)? 110000.0:isotherm_depth;
+        
+       isotherm_depth = (ascii_data_lab.get_data_component(surface_boundary_id, position, 7)==1)? rift_thickness  :isotherm_depth;
+        
         // lithosphere. More realistic would be a half space cooling model. TO DO List. 
         double temperature_perturbation = 0.0;
         double lab_temperature;
@@ -295,7 +253,7 @@ namespace aspect
            {
                // scale the density perturbation into a temperature perturbation
               temperature_perturbation = -1./thermal_alpha * vs_to_density * vs_perturbation;
-              temperature_perturbation = std::min(std::max(temperature_perturbation, -200.0),200.0);
+              temperature_perturbation = std::min(std::max(temperature_perturbation, -300.0),300.0);
            }
          else
            {
@@ -305,19 +263,12 @@ namespace aspect
     
            if (add_temperature_perturbation == false)
               temperature_perturbation = 0.0;
-        // isotherm_depth = 100000.0; 
-      //  isotherm_depth = ascii_data_lab.get_data_component(surface_boundary_id, position, 0);
-        double temperature;
+        
+         double temperature;
         if (depth < isotherm_depth)
-        {
-           //double ridge_temp = (111*std::abs(Utilities::signed_distance_to_polygon<2>(boundaries_point_lists, wpoint )) < 30)?200.0:0.0;
-            // Sometimes the temperature at the surface become negative so set it to 298 K. 
           temperature =  continental_geotherm_method1 (depth, isotherm_depth, upper_crust_bottom, middle_crust_bottom, lower_crust_bottom);
-        }
         else 
-            temperature =  lab_isotherm_temperature + (depth - isotherm_depth) * 0.0005;
-           // temperature =  lab_isotherm_temperature + temperature_perturbation;
-        //    temperature = (add_temperature_perturbation == false) ?  vs_perturbation: temperature_perturbation;
+          temperature =  lab_isotherm_temperature + (depth - isotherm_depth) * 0.0005 + temperature_perturbation;
 
 
         return temperature;
@@ -336,7 +287,7 @@ namespace aspect
                  Utilities::AsciiDataBoundary<dim>::declare_parameters(prm,
                                                             "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
            //                                                 "Emry.litho.aspect.input.txt");
-                                                             "ears_synthetic_litho_crust1.txt");
+                                                             "ears_synthetic_litho_updated.txt");
              }
             prm.leave_subsection();
   
@@ -352,7 +303,7 @@ namespace aspect
           	                 Patterns::Double (0),
                              "The value of the thermal expansion coefficient $\\alpha$. "
                              "Units: $1/K$.");
-            prm.declare_entry ("Vs to density", "0.2",
+            prm.declare_entry ("Vs to density", "0.1",
                       	     Patterns::Double (0),
                       	     "Vs to density scaling factor");
             prm.declare_entry ("Surface heat flow", "0.04",

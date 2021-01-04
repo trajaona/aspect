@@ -174,6 +174,7 @@ namespace aspect
              viscosity_diffusion    = std::min(std::max(viscosity_diffusion, min_visc), max_visc);
              viscosity_dislocation  = std::min(std::max(viscosity_dislocation, min_visc), max_visc);
              viscosity_pre_yield    = (viscosity_diffusion * viscosity_dislocation)/(viscosity_diffusion + viscosity_dislocation);
+            viscosity_pre_yield     =  std::min(std::max(viscosity_pre_yield, min_visc), max_visc);
           }
           else
           {
@@ -268,7 +269,8 @@ namespace aspect
             //                                uniform_viscosities[j];
      
           // Limit the viscosity with specified minimum and maximum bounds
-          composition_viscosities[j] = std::min(std::max(viscosity_yield, min_visc), max_visc);
+          composition_viscosities[j] = (std::distance(volume_fractions.begin(),max_volume_fraction) == 0)? viscosity_yield: std::min(std::max(viscosity_yield, min_visc), max_visc);
+    //      composition_viscosities[j] = std::min(std::max(viscosity_yield, min_visc), max_visc);
         }
       return std::make_pair (composition_viscosities, composition_yielding);
     }

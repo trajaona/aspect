@@ -381,8 +381,9 @@ namespace aspect
         std::array<double,dim> ecoord;
 
         // Define WGS84 ellipsoid constants.
-        const double radius = 6378137.;
-        const double ellipticity = 8.1819190842622e-2;
+        const double radius = 0.;
+      //  const double ellipticity = 8.1819190842622e-2;
+        const double ellipticity = 0.0;
         const double b = std::sqrt(radius * radius
                                    * (1 - ellipticity * ellipticity));
         const double ep = std::sqrt((radius * radius - b * b) / (b * b));
