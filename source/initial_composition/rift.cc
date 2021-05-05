@@ -105,35 +105,7 @@ namespace aspect
      double  base_of_lithosphere =  lab;
      base_of_lithosphere = (base_of_lithosphere > 99000.0 && base_of_lithosphere < 120010.0)? 110000.0:base_of_lithosphere;
      base_of_lithosphere = (base_of_lithosphere > 85000.0 && base_of_lithosphere < 95000.0)? 80000.0:base_of_lithosphere;
-/*        double rift_width;
-        double rift_thickness;
-        if (wcoord[2] > 6.0 &&  wcoord[1] < 55)
-        {
-            rift_width = 0.0;
-            rift_thickness =  70000.0;
-        }
-        else if (wcoord[1] > 55)
-        {
-            rift_width = 30.0;
-            rift_thickness = 70000.0;
-        }
-        else
-        {
-            rift_width = 0.0;
-            rift_thickness = 70000.0;
-        }
-*/
-     //  double base_of_lithosphere = lab;
-  /*    base_of_lithosphere = ( Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 7) ==1)?rift_thickness: base_of_lithosphere;
-      base_of_lithosphere =  (111*std::abs(Utilities::signed_distance_to_polygon<2>(boundaries_point_lists, wpoint )) < rift_width) ?rift_thickness :base_of_lithosphere;
-      bool western_branch  = (wcoord[1] < 32.0) ? true:false;
-      base_of_lithosphere = (lab < 90000.0 && western_branch==true)?(rift_thickness + 5):base_of_lithosphere;
       
-      base_of_lithosphere = (lab > 100000.0)?150000.0:base_of_lithosphere;
-      base_of_lithosphere = (base_of_lithosphere > 99999.0 && base_of_lithosphere < 100005.0) ? 120000.0: base_of_lithosphere;      
-      double rift  = Utilities::AsciiDataBoundary<dim>::get_data_component(surface_boundary_id, position, 0);
-       
-       */
       // calculate  layers thickness. 
       const double h_uc = base_of_upper_crust; 
       const double h_mc = base_of_middle_crust - base_of_upper_crust;
@@ -152,28 +124,8 @@ namespace aspect
       const unsigned int lower_crust_dens_idx = this->introspection().compositional_index_for_name("lower_crust_density");
       const unsigned int mantle_lithosphere_dens_idx = this->introspection().compositional_index_for_name("mantle_lithosphere_density");
       const unsigned int plastic_strain_idx = this->introspection().compositional_index_for_name("plastic_strain");
-      //const unsigned int rifts_idx = this->introspection().compositional_index_for_name("rifts");
       
-      // distance to polygone in km
-      /*
-      double distance_to_plate_boundary = 111.0 * std::abs(Utilities::signed_distance_to_polygon<2>(boundaries_point_lists, wpoint));
-      const  Point<2> p1 (31.466, 2.420); 
-      const  Point<2> p2 (33.1, 4.280);
-      const std::array<Point<2>,2> l_1 = {p1,p2};
-      const  Point<2> p3 (33.756, -8.545);
-      const  Point<2> p4 (35.269, -7.096);
-      const std::array<Point<2>,2> l_2 = {p3,p4};
-      const  Point<2> p5 (35.369, -7.096);
-      const  Point<2> p6 (35.389, -4.328);
-      const std::array<Point<2>,2> l_3 = {p5,p6};
-
-      double seg1 =  111.0 * std::abs(Utilities::distance_to_line(l_1, wpoint));    
-      double seg2 =  111.0 * std::abs(Utilities::distance_to_line(l_2, wpoint));    
-      double seg3 =  111.0 * std::abs(Utilities::distance_to_line(l_3, wpoint));    
-      bool strong = (seg1 < 170.0 || seg2 < 150.0 || seg3 < 175.0) ? true:false;
-       //base_of_lithosphere = 100000.0; 
-       */
-      // Lithospheric compositional fields
+       // Lithospheric compositional fields
       if  (depth <= base_of_upper_crust &&  n_comp == upper_crust_idx) // uppper crust
           return 1.;
       else if (depth > base_of_upper_crust && depth <= base_of_middle_crust && n_comp == middle_crust_idx) // middle_crust
@@ -196,7 +148,7 @@ namespace aspect
          double  w4 =  rho_lc * h_lc; 
          
          double  w_crust = w1 + w2 + w3 + w4;
-         double L = 150000.0;
+         double L = 100000.0;
          double rho_ref =  3300.0;
          
          double  w_mm    = (L - base_of_lithosphere)*3300.0;  
@@ -205,10 +157,8 @@ namespace aspect
          double w_ref = rho_ref * L;
          double w_mtl = w_ref - (w_crust + w_mm);
          double density_compensation =  w_mtl / h_mtl;
-         return std::min(density_compensation,4316.0); 
-       // return rho_ref = 3300.0;
+         return density_compensation;
      } 
-       //else if (depth <   base_of_lithosphere   &&  base_of_lithosphere  < 90000.0 && strong == false && n_comp == plastic_strain_idx)
        else if (depth < base_of_lithosphere   &&  base_of_lithosphere  < 95000.0 && n_comp == plastic_strain_idx)
        {
         return 1.0; 
@@ -227,7 +177,6 @@ namespace aspect
  
       Utilities::AsciiDataBase<dim>::declare_parameters(prm,
                                                         "$ASPECT_SOURCE_DIR/data/initial-temperature/ascii-data/",
-//                                			"Emry.litho.aspect.input.txt");
                                                         "ears_synthetic_litho_updated.txt");
     
            prm.enter_subsection("Rift");

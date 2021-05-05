@@ -247,7 +247,7 @@ namespace aspect
                vs_perturbation = ascii_grid_vs(position)*0.01;
 
     	 // scale the density perturbation into a temperature perturbation. Velocity perturbation make sense only above 400Km depth. Do not apply perturbation below that
-    	 // Set a maximum perturbation to 500 K and minimum -500 K. DO TO: Find a more resonnable perturbation value. 
+    	 // Set a maximum perturbation to 300 K and minimum -300 K. DO TO: Find a more resonnable perturbation value. 
         double max_grid_depth = 410000.0;
         if (depth > isotherm_depth)
            {
